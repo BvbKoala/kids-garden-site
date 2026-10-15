@@ -91,3 +91,6 @@ body{background:#f9f6e9}.farm-page{max-width:1150px}.farm-heading{display:flex;a
 .pond .pen-stage .animal-stage-0{bottom:42%}
 .pond .pen-stage .animal-stage-1{bottom:40%}
 .pond .pen-stage .animal-stage-2{bottom:37.5%}
+
+/* Quiet progress under each crop and animal; no extra field interaction target. */
+.growth-meter{display:flex;flex-direction:column;gap:3px;width:100%;max-width:180px;margin:4px auto 0;padding:4px 7px;border-radius:9px;background:#fffdf0e8;color:#315647;pointer-events:none;box-sizing:border-box}.growth-meter progress{display:block;width:100%;height:7px;accent-color:#4b9869;border:0;border-radius:8px;overflow:hidden;background:#dce8ce}.growth-meter progress::-webkit-progress-bar{background:#dce8ce}.growth-meter progress::-webkit-progress-value{background:#4b9869;border-radius:8px}.growth-meter.complete progress{accent-color:#d6a537}.growth-meter.complete progress::-webkit-progress-value{background:#d6a537}.growth-meter small{font-size:10px;line-height:1.35;text-align:center;white-space:normal}.plot>[data-growth-clock]{width:100%;position:relative;z-index:2}.plot{min-height:225px}.pen-info .growth-meter{margin-bottom:6px}@media(max-width:650px){.plot{min-height:173px}.growth-meter{padding:3px 4px}.growth-meter small{font-size:9px}}

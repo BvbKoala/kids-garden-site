@@ -27,7 +27,7 @@
     for(let i=0;i<6;i++){
       const p=f.plots[i],c=r.crops.find(c=>c.id===p?.crop),b=document.createElement('button');b.id='plot-'+i;b.className='plot'+(p?.stage===3?' ready':'');
       const stage=p?(c.stages||['刚播种','小芽芽','长大啦','成熟啦'])[p.stage]:'空菜地';
-      b.innerHTML=`<span class="plot-number">${i+1} 号地</span><span class="crop-art" aria-hidden="true">${p?cropPhoto(c.id,p.stage,c.name+' · '+stage):'＋'}</span><strong>${c?.name||'种点什么？'}</strong><span class="stage">${stage}${p?' · '+p.stage+'/3':''}</span>`;
+      b.innerHTML=`<span class="plot-number">${i+1} 号地</span><span class="crop-art" aria-hidden="true">${p?cropPhoto(c.id,p.stage,c.name+' · '+stage):'＋'}</span><strong>${c?.name||'种点什么？'}</strong><span class="stage">${stage}${p?' · '+p.stage+'/3':''}</span>${p?`<span data-growth-clock='${JSON.stringify(p)}'>${GardenGrowthUI.markup(p)}</span>`:''}`;
       b.setAttribute('aria-label',`${i+1}号菜地 · ${c?.name||'空地'} · ${stage} · ${toolList.find(t=>t[0]===tool)[2]}`);b.disabled=!!s.error;
       b.onclick=e=>{if(e.detail>=2)return;if(tool==='plant'&&!seed){if(!seedTotal)$('reward-message').textContent=GardenFarmFX.warn('seeds');$('seed-dialog').showModal();return;}act(tool,i,seed);};$('plots').append(b);
     }
