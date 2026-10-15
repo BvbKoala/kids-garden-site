@@ -1,0 +1,1 @@
+window.GardenAccessConfig = Object.freeze({"version": "a22a3fbbf700b0e4a0b7a29b73840322", "salt": "b81f0d4481acbe6e96e564928efea150", "iterations": 210000, "verifier": "5f38e98efc7bd953c505688ec01ac0e876723101518cdf3306b78a3363f6acf7"});

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#167568">
+<meta name="robots" content="noindex,nofollow">
+<title>花园钥匙 · 儿童学习花园</title>
+<link rel="stylesheet" href="access.css">
+<script src="access-config.js"></script>
+<script src="access.js"></script>
+<script defer src="login.js"></script>
+</head>
+<body>
+<main class="gate">
+  <div class="gate-picture"><img src="assets/scenery/house.webp" alt="绿树环绕的花园小屋"><span>每一天，都有新发现</span></div>
+  <section class="gate-form">
+    <p class="eyebrow">LITTLE LEARNING GARDEN</p>
+    <h1>带上钥匙，<br>走进学习花园</h1>
+    <p class="welcome">输入家人给你的访问口令，一起探索吧。</p>
+    <form id="access-form">
+      <label for="access-code">花园访问口令</label>
+      <div class="code-row"><input id="access-code" type="password" autocomplete="current-password" required maxlength="200" spellcheck="false" autofocus><button id="toggle-code" type="button" aria-label="显示口令" aria-pressed="false">显示</button></div>
+      <label class="remember"><input id="remember" type="checkbox">在这台设备上记住 7 天</label>
+      <button class="enter" type="submit">打开花园 →</button>
+      <p id="access-message" role="status" aria-live="polite"></p>
+    </form>
+    <p class="gate-note">退出访问不会清除学习记录、星星和收成。</p>
+    <noscript><p>请启用 JavaScript 后输入口令。</p></noscript>
+  </section>
+</main>
+</body>
+</html>
