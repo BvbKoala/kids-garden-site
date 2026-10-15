@@ -1,6 +1,9 @@
 (() => {
   const catalog=LiteracyCatalog,core=LiteracyCore,audio=LiteracyAudio;
-  const store=core.open(localStorage,catalog,GardenContent.literacyGroups),prefs=store.state;
+  const book=GardenMistakeBook.open(localStorage,'literacy');let afterNotebook=null;
+  const referenceOnlyRoute=new URLSearchParams(location.search).has('character');
+  const recordStorage=referenceOnlyRoute?{getItem:key=>localStorage.getItem(key),setItem:()=>{}}:localStorage;
+  const store=core.open(recordStorage,catalog,GardenContent.literacyGroups),prefs=store.state;
   const opening=store.currentCourse();if(opening){prefs.lesson=opening.id;prefs.level=opening.level;}
   const root=document.querySelector('#learning'),byChar=new Map(catalog.characters.map(c=>[c.char,c]));
   const byId=new Map(catalog.characters.map(c=>[c.id,c]));
@@ -36,6 +39,8 @@
     root.querySelectorAll('[data-lesson]').forEach(b=>b.onclick=()=>lesson(b.dataset.lesson));
     root.querySelector('#continue-lesson').onclick=()=>lesson(selected.id);
     root.querySelector('#review').onclick=()=>start(null,'listen',store.review(prefs.level));
+    root.querySelector('.journey-actions').insertAdjacentHTML('beforeend',`<button id="mistake-book">📖 我的错题本 · ${book.items().length}</button>`);
+    root.querySelector('#mistake-book').onclick=()=>{afterNotebook=null;startNotebook();};
     root.querySelector('#previous-page').onclick=()=>{page--;home();};root.querySelector('#next-page').onclick=()=>{page++;home();};
     root.querySelector('#level-setting').onchange=e=>{const first=catalog.lessons.find(unit=>unit.level===Number(e.target.value));if(!first||!store.courseAllowed(first.id)){e.target.value=prefs.level;return locked();}prefs.level=Number(e.target.value);prefs.lesson=catalog.lessons.find(l=>l.level===prefs.level).id;store.save();page=0;home();root.querySelector('.settings').open=true;};
     root.querySelector('#sound-setting').onchange=e=>{prefs.sound=e.target.checked;audio.stop();store.save();recordNotice();};
@@ -61,22 +66,27 @@
     root.querySelectorAll('[data-character]').forEach(b=>b.onclick=()=>detail(byId.get(b.dataset.character),id));
     root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>start(id,b.dataset.mode));
   }
-  function detail(entry,returnTo){
-    if(!entry||!store.courseAllowed(entry.lesson))return locked();
-    round=null;store.seen(entry);
+  function detail(entry,returnTo,referenceOnly=false){
+    if(!entry||(!referenceOnly&&!store.courseAllowed(entry.lesson)))return locked();
+    round=null;if(!referenceOnly)store.seen(entry);
     screen(`<button id="back">← 返回${returnTo?'小冒险':'小花园'}</button>${notice()}<section class="char-detail"><div><div class="game-picture" aria-hidden="true">${symbols[entry.char]||'🌱'}</div><div class="large-char">${entry.char}</div><p class="large-pinyin">${entry.pinyin}</p><p class="intro reading-note">${entry.strokes} 笔 · 部首 ${entry.radical}</p></div><div><h1>你好，${entry.char}！</h1><p>点词语听一听。它在词语里的读音标在下面。</p>${entry.words.map((w,i)=>`<button class="word-button" data-word="${i}">🔊 ${esc(w.text)}<small>${esc(w.pinyin)}</small><small>${entry.char}在这里读 ${esc(w.reading)}</small></button>`).join('')}${error()}<p class="reading-note">多音字可以在不同词语中读不同的音。</p><div class="stroke-actions"><button id="open-drawing">🖌️ 描一描这个字</button><button id="practice-character">🧩 和它拼词语</button></div></div></section>`);
     root.querySelector('#back').onclick=()=>returnTo?lesson(returnTo):home();
     root.querySelectorAll('[data-word]').forEach(b=>b.onclick=()=>playWord(entry.words[Number(b.dataset.word)]));
+    if(referenceOnly){root.querySelector('.stroke-actions').remove();root.querySelector('#back').onclick=()=>location.href='../poetry/index.html';return;}
     root.querySelector('#open-drawing').onclick=()=>start(entry.lesson,'trace',[entry]);root.querySelector('#practice-character').onclick=()=>start(entry.lesson,'build',[entry]);
     playWord(entry.words[0]);
   }
-  function start(id,mode,pool){
+  function start(id,mode,pool,notebook=false){
     if(!['listen','build','trace'].includes(mode))return;
     const unit=catalog.lessons.find(l=>l.id===id);if(id&&(!unit||!store.courseAllowed(id)))return locked();
+    if(book.blocked){announce(book.error);return;}
+    if(mode!=='trace'&&((!notebook&&book.items().length)||(notebook==='cleared'&&book.items().some(item=>GardenWordReview.isDue(item))))){
+      afterNotebook=()=>start(id,mode,pool,'cleared');return startNotebook();
+    }
     const entries=(pool||(unit?unit.characters.map(c=>byChar.get(c)):[])).filter(entry=>store.courseAllowed(entry.lesson));
     if(!entries.length)return home();
     const targets=core.shuffle(entries).sort((a,b)=>(store.covered(id).includes(a.id)?1:0)-(store.covered(id).includes(b.id)?1:0)||(prefs.stats[a.id]?.correct||0)-(prefs.stats[b.id]?.correct||0)).slice(0,5);
-    round={id:`literacy-${Date.now()}-${Math.random()}`,lesson:id||`review-level-${prefs.level}`,mode,targets,index:0,locked:false,wordIndex:0,placed:0};draw();
+    round={notebook:notebook===true,failed:new Set(),pending:new Set(),attempts:0,id:`literacy-${Date.now()}-${Math.random()}`,lesson:id||`review-level-${prefs.level}`,mode,targets,index:0,locked:false,wordIndex:0,placed:0};round.allTargets=[...targets];draw();
   }
   function feedback(text){const el=root.querySelector('.feedback');if(el)el.textContent=text;announce(text);}
   function distractors(entry){
@@ -86,9 +96,9 @@
     const unique=[...new Set(pool.map(c=>c.char))];return core.shuffle([entry.char,...unique.slice(0,prefs.options-1)]);
   }
   function draw(){
-    const current=round;if(!current)return;if(current.index===current.targets.length)return finish();
+    const current=round;if(!current)return;if(current.index===current.targets.length){if(current.pending.size){current.targets=core.shuffle(current.allTargets.filter(e=>current.pending.has(e.id)));current.pending.clear();current.index=0;}else return finish();}
     const entry=current.targets[current.index];current.wordIndex=(prefs.stats[entry.id]?.correct||0)>1?Math.floor(Math.random()*2):0;const word=entry.words[current.wordIndex];
-    current.locked=false;current.placed=0;
+    current.locked=false;current.placed=0;current.attempts=0;
     const captions={listen:'听一听，送字宝宝回家',build:'听一听，搭出这个词语',trace:'跟着小路，描一描'};
     const base=`<div class="game-head"><button id="leave">← 返回</button><div class="round-progress" aria-label="第 ${current.index+1} 题，共 ${current.targets.length} 题">${current.targets.map((_,i)=>`<span class="${i<current.index?'done':''}"></span>`).join('')}</div><span id="round-count">${current.index+1} / ${current.targets.length}</span></div>${notice()}<section class="literacy-game" data-entry="${entry.id}" data-word-index="${current.wordIndex}"><h1 tabindex="-1">${captions[current.mode]}</h1><p class="round-caption">${current.mode==='trace'?`${entry.char} · ${entry.pinyin} · ${entry.strokes} 笔`:'听词语，找到它的朋友。'}</p>`;
     let body='';
@@ -120,14 +130,14 @@
   function choose(index){
     const current=round;if(!current||current.locked)return;
     const entry=current.targets[current.index];
-    if(current.options[index]!==entry.char){store.answer(entry,false);recordNotice();feedback('没关系，再听一听，字宝宝在等你。');playWord(entry.words[current.wordIndex]);return;}
+    if(current.options[index]!==entry.char){const skipped=recordMistake(entry);store.answer(entry,false);recordNotice();if(!skipped){feedback('没关系，再听一听，字宝宝在等你。');playWord(entry.words[current.wordIndex]);}return;}
     store.answer(entry,true);next(entry.char+' 找到家啦！');
   }
   function place(id){
     const current=round;if(!current||current.locked)return;
     const tile=current.tiles.find(t=>t.id===id),entry=current.targets[current.index],word=entry.words[current.wordIndex];
     if(!tile||tile.used)return;
-    if(tile.char!==word.text[current.placed]){store.answer(entry,false);recordNotice();feedback('还差一点，听听词语，或者点一下小灯泡。');playWord(word);return;}
+    if(tile.char!==word.text[current.placed]){const skipped=recordMistake(entry);store.answer(entry,false);recordNotice();if(!skipped){feedback('还差一点，听听词语，或者点一下小灯泡。');playWord(word);}return;}
     tile.used=true;const slot=root.querySelector(`[data-slot="${current.placed}"]`);slot.textContent=tile.char;slot.classList.add('filled');root.querySelector(`[data-tile="${id}"]`).disabled=true;current.placed++;
     if(current.placed===word.text.length){store.answer(entry,true);next(word.text+' 搭好啦！');}else feedback('搭好一个字，再找下一个朋友。');
   }
@@ -170,13 +180,15 @@
   }
   function finish(){
     const current=round;if(!current||current.finished||current.index!==current.targets.length||!current.targets.length)return;current.finished=true;
-    store.complete(current.lesson,current.mode,current.targets);
+    if(!book.settle(current.allTargets.map(e=>e.id),[...current.failed])){current.finished=false;announce(book.error);return;}
+    if(!current.notebook)store.complete(current.lesson,current.mode,current.allTargets);
     const reward=GardenRewards.award('literacy',`${current.lesson}-${current.mode}`,current.id);
-    const note=store.error||reward.error||(reward.amount?`⭐ 获得 ${reward.amount} 颗星星${reward.bonusAmount?' · 四科打卡完成，额外 +5 颗！':''}`:'这一关的星星已经记好啦。');
+    const note=store.error||reward.error||(reward.amount?`⭐ 获得 ${reward.amount} 颗星星${reward.bonusAmount?' · 五科打卡完成，额外 +5 颗！':''}`:'这一关的星星已经记好啦。');
     const unit=catalog.lessons.find(l=>l.id===current.lesson),passed=unit&&store.coursePassed(unit.id),following=unit&&passed?catalog.lessons[catalog.lessons.indexOf(unit)+1]:unit;
     const remaining=unit&&!passed?unit.characters.length-store.covered(unit.id).length:0;
     screen(`<section class="finish"><div class="symbol" aria-hidden="true">🌟</div><h1>汉字小冒险，完成啦！</h1><p>${unit&&!passed?`本课还需完成 ${remaining} 个字的找字或拼词，全部完成后解锁下一课。`:'小蜗牛收到了你的新发现，下一课已解锁！'}</p><div class="completion-book" aria-label="本轮认识的汉字">${current.targets.map(c=>`<span>${c.char}</span>`).join('')}</div><p class="feedback">${esc(note)}</p>${reward.rest?'<div class="rest-panel"><h2>休息一会儿吧</h2><p>离开屏幕，喝口水、看看远处。花园会等你回来。</p></div>':''}${unit&&!following?'<div class="level-done"><h2>这一层的小路走到尽头啦！</h2><p>可以回去浇水复习，也可以请家长选择下一层。</p></div>':''}<div class="finish-actions"><a class="reward-link" href="../../rewards.html">🌱 布置花园</a><button class="primary" id="next-round">下一关</button><button id="rest">休息一下</button><button id="go-home">回到识字花园</button></div></section>`);
     root.querySelector('#go-home').onclick=home;root.querySelector('#next-round').onclick=()=>{
+      if(current.notebook){const resume=afterNotebook;afterNotebook=null;if(resume)resume();else home();return;}
       if(unit){if(!following){home();announce('501 课都通过啦！可以重练或浇水复习。');return;}const nextUnit=following;prefs.lesson=nextUnit.id;prefs.level=nextUnit.level;store.save();start(nextUnit.id,!passed&&current.mode==='trace'?'listen':current.mode);}
       else{const previous=new Set(current.targets.map(c=>c.id));const candidates=store.review(prefs.level);const pool=candidates.filter(c=>!previous.has(c.id));start(null,current.mode,pool.length?pool:candidates);}
     };
@@ -184,5 +196,18 @@
     announce('汉字小冒险完成啦');
     if(reward.amount===1){const finishToken=screenToken;audio.play('../shared/audio/star-earned.mp3',prefs.sound).then(()=>{if(screenToken===finishToken&&reward.bonusAmount)audio.play('../shared/audio/daily-checkin-bonus.mp3',prefs.sound);});}
   }
-  window.addEventListener('pagehide',stop);home();
+  function recordMistake(entry){
+    const current=round;current.failed.add(entry.id);current.pending.add(entry.id);current.attempts++;
+    book.miss(entry.id,{entryId:entry.id});
+    if(current.attempts>=2){current.locked=true;const word=entry.words[current.wordIndex];feedback('先听一听：'+word.text+'。稍后再来认这个字。');audio.play('audio/'+word.audio+'.mp3',prefs.sound).then(()=>{if(round===current){current.index++;draw();}});return true;}return false;
+  }
+  function startNotebook(){
+    const items=book.items().slice(0,5),entries=items.map(x=>byId.get(x.payload.entryId)).filter(Boolean);
+    if(!entries.length){home();announce(book.error||'错题本里还没有错字。');return;}
+    const familiar=catalog.characters.filter(c=>store.courseAllowed(c.lesson)&&!entries.includes(c));
+    entries.push(...core.shuffle(familiar).slice(0,5-entries.length));start(null,'listen',entries,true);
+  }
+  window.addEventListener('pagehide',stop);
+  const linkedChar=new URLSearchParams(location.search).get('character');
+  if(linkedChar&&byChar.has(linkedChar))detail(byChar.get(linkedChar),null,true);else home();
 })();

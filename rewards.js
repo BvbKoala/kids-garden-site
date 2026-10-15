@@ -423,10 +423,10 @@
   const dayKey = () => {const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
   function record(s,type,amount,detail) {s.events.push({type,amount,detail,date:new Date().toISOString()});s.events=s.events.slice(-200);}
   function snapshot() {const s=read();return s ? {...s,balance:s.earned-s.spent,error} : {...blank(),balance:0,error};}
-  const dailySubjects=['english','literacy','math','knowledge'];
-  function dailyCheckIn(){const s=read(),day=dayKey(),d=s?.days[day];const subjects=d?dailySubjects.filter(id=>d.subjects.includes(id)):[];return {day,subjects,complete:subjects.length===4,claimed:!!d?.checkInBonusClaimed,bonus:5,error};}
+  const dailySubjects=['english','literacy','math','knowledge','poetry'];
+  function dailyCheckIn(){const s=read(),day=dayKey(),d=s?.days[day];const subjects=d?dailySubjects.filter(id=>d.subjects.includes(id)):[];return {day,subjects,complete:subjects.length===dailySubjects.length,claimed:!!d?.checkInBonusClaimed,bonus:5,error};}
   function addCheckInBonus(s,day,daily){daily.checkInBonusClaimed=true;daily.points+=5;s.earned+=5;record(s,'daily-checkin',5,day);}
-  function claimDailyCheckIn(){const s=read();if(!s)return {amount:0,error};const day=dayKey(),daily=s.days[day];if(!daily||!dailySubjects.every(id=>daily.subjects.includes(id)))return {amount:0,error:'今天的四科还没全部完成哦。'};if(daily.checkInBonusClaimed)return {amount:0,duplicate:true};if(!Number.isSafeInteger(s.earned+5)||!Number.isSafeInteger(daily.points+5))return {amount:0,error:'星星记录暂时无法保存。'};addCheckInBonus(s,day,daily);return save(s)?{amount:5,balance:s.earned-s.spent}:{amount:0,error};}
+  function claimDailyCheckIn(){const s=read();if(!s)return {amount:0,error};const day=dayKey(),daily=s.days[day];if(!daily||!dailySubjects.every(id=>daily.subjects.includes(id)))return {amount:0,error:'今天的五科还没全部完成哦。'};if(daily.checkInBonusClaimed)return {amount:0,duplicate:true};if(!Number.isSafeInteger(s.earned+5)||!Number.isSafeInteger(daily.points+5))return {amount:0,error:'星星记录暂时无法保存。'};addCheckInBonus(s,day,daily);return save(s)?{amount:5,balance:s.earned-s.spent}:{amount:0,error};}
   function award(subject,topic,eventId) {
     const s=read();if(!s)return {amount:0,error};
     if(typeof eventId!=='string'||!eventId||s.events.some(e=>e.id===eventId)||s.settled?.includes(eventId))return {amount:0,duplicate:true};

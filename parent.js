@@ -1,10 +1,11 @@
 (() => {
- const labels={english:'英语',literacy:'识字',math:'数学',knowledge:'常识'};
+ const labels={english:'英语',literacy:'识字',math:'数学',knowledge:'常识',poetry:'古诗'};
  const errors=[];
  function read(key){try{const value=JSON.parse(localStorage.getItem(key)||'{}');if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value;}catch{errors.push('有一份学习记录未能读取，请先下载备份再检查。');return {};}}
  const english=read(localStorage.getItem('abc-garden-v2')?'abc-garden-v2':'abc-garden-v1'),study=read('learning-garden-study-v1'),literacy=read('learning-garden-literacy-v2'),r=GardenRewards.snapshot();if(r.error)errors.push(r.error);
  const cards=[['英语',Number(english.rounds)||0,`已接触 ${Array.isArray(english.seen)?english.seen.length:0} / 260 个单词`]];
  for(const id of ['literacy','math','knowledge'])cards.push([labels[id],Object.entries(study.completed||{}).filter(([k])=>k.startsWith(id+':')).reduce((s,[,v])=>s+(Number(v)||0),0)+(id==='literacy'?(Number(literacy.rounds)||0):0),id==='literacy'?`已接触 ${Array.isArray(literacy.seen)?literacy.seen.length:0} / 3000 字 · 基础 300 字起步`:id==='math'?`当前加减法范围：${study.range||10} 以内`:'生活习惯、自然与平安 · 各 100 道题']);
+ const poetry=read('learning-garden-poetry-v1');cards.push(['古诗',Number(poetry.rounds)||0,`听懂会接 ${Object.keys(poetry.passed||{}).length}/75 首 · 前 20 首启蒙`]);
  const grid=document.querySelector('#parent-stats');for(const [name,count,detail] of cards){const card=document.createElement('article');card.className='parent-card';const title=document.createElement('h2');title.textContent=name;const stat=document.createElement('strong');stat.textContent=count+' 轮';const p=document.createElement('p');p.textContent=detail;card.append(title,stat,p);grid.append(card);}
  document.querySelector('#parent-error').textContent=[...new Set(errors)].join(' ');
  const today=r.days[GardenRewards.dayKey()]||{rounds:0,points:0};document.querySelector('#today').textContent=`今天完成 ${today.rounds} 轮，获得 ${today.points} 颗星星。累计获得 ${r.earned} 颗，当前可用 ${r.balance} 颗。`;

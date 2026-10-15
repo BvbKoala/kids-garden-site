@@ -22,9 +22,10 @@ const openingCourse = courses[curriculum.current(prefs.courseProgress,courses)];
 prefs.selected = openingCourse.letter;wordPage = openingCourse.page;
 const courseIndex = () => courses.findIndex(course=>course.letter===prefs.selected&&course.page===wordPage);
 const courseAllowed = index => curriculum.accessible(prefs.courseProgress,courses,index);
+let reviewClearance=false;
 const dueReview = () => review.due(prefs.wordReview);
 function requireReview() {
-  if(!dueReview().length)return false;
+  if(!dueReview().length&&(!review.active(prefs.wordReview).length||reviewClearance))return false;
   renderReviewBook();notice('先完成今天到期的单词复习，再开始课程。');return true;
 }
 function moveToCourse(index) {
@@ -147,6 +148,7 @@ function nearbyLessons() { return lessons.slice(Math.min(lesson().index,23),Math
 function startGame(kind,journey=false,reviewMode=false) {
   if(!['listen','match'].includes(kind))return;
   if(!reviewMode&&(requireReview()||!courseAllowed(courseIndex())))return;
+  if(!reviewMode)reviewClearance=false;
   stopAudio();view=kind;
   let pool=kind==='match'?nearbyLessons().map(l=>l.words[0]):batchWords();
   if(reviewMode){
@@ -230,7 +232,7 @@ async function answer(id) {
 
 function complete() {
   if(!game||game.finished||game.retries.size||game.round<game.total||game.pool.some(w=>!game.solved.has(w.id)))return;
-  game.finished=true;
+  game.finished=true;if(game.reviewMode)reviewClearance=true;
   if(game.kind==='listen'){
     review.settle(prefs.wordReview,game.solved,game.failed);
     if(!game.reviewMode)curriculum.pass(prefs.courseProgress,courses,game.courseIndex);
@@ -239,7 +241,7 @@ function complete() {
   const key=`${game.letter}-${game.kind}`;prefs.completed[key]=(prefs.completed[key]||0)+1;
   save();
   const reward=globalThis.GardenRewards?.award('english',`${game.letter}-${game.kind}-${wordPage}`,`english-${Date.now()}-${Math.random()}`);
-  const rewardText=reward?.error|| (reward?.amount ? `⭐ 获得 ${reward.amount} 颗星星！${reward.bonusAmount?' 四科打卡完成，额外 +5 颗星星！':''}` : '这一关的星星已经记好啦。');
+  const rewardText=reward?.error|| (reward?.amount ? `⭐ 获得 ${reward.amount} 颗星星！${reward.bonusAmount?' 五科打卡完成，额外 +5 颗星星！':''}` : '这一关的星星已经记好啦。');
   app.innerHTML=`<section class="game completion"><div class="reward">${icon('star')}</div><p class="eyebrow">A LITTLE MOMENT TO SHINE</p><h1>${game.reviewMode?'单词复习':game.letter+' 的小冒险'}，完成啦！</h1><p>${game.failed.size?'刚才答错的朋友，也都重新认对啦！':'每个朋友都认对啦！'}${game.kind==='listen'&&game.failed.size?' 错词已安排间隔复习。':''}</p><p class="reward-note">${rewardText}${reward?.rest?' 你已经探索了好几轮，去喝口水、看看远处吧。':''}</p><a class="reward-entry" href="../../rewards.html">🌱 布置我的花园</a><div class="reward-row">${game.kind==='match'?game.pool.map(w=>`<span class="reward-letter">${w.letter}${w.lower}</span>`).join(''):game.pool.map(w=>`<div class="word-reward">${sprite(w)}<strong>${w.word}</strong></div>`).join('')}</div><div class="completion-actions"><button class="primary" id="next-round">${icon('play')}${game.reviewMode?(dueReview().length?'继续今日复习':'继续课程学习'):'下一关'}</button>${game.kind==='listen'?'<button class="secondary" id="review-book">查看错题本</button>':''}<button class="secondary" id="rest">休息一下</button></div></section>`;
   icons();if(reward?.amount===1)speak(...(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']));else speak('finish');
 }
