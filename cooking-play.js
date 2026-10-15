@@ -18,20 +18,20 @@
   const arrow=key==='stir'?'<path d="M 62 67 L 48 80 L 62 93 M 178 67 L 192 80 L 178 93"/>':key==='flip'?'<path d="M 105 44 L 120 28 L 135 44"/>':'<path d="M 78 63 L 80 46 L 97 49"/>';
   return `<svg class="gesture-demo" viewBox="0 0 240 160" aria-hidden="true"><path class="gesture-track" d="${path}"/>${arrow}<circle class="gesture-start" cx="${key==='stir'?48:key==='flip'?120:175}" cy="${key==='flip'?130:80}" r="11"/><circle class="gesture-finger" r="8"><animateMotion path="${path}" dur="2.2s" repeatCount="indefinite"/></circle></svg><span class="gesture-label">${{stir:'左右推一推',flip:'向上翻一面',mix:'沿着圆圈拌'}[key]}</span>`;
  }
- const active=new WeakMap();
+ const goal=10,active=new WeakMap();
  const steam=method=>method==='拌'?'':'<span class="dish-steam" aria-hidden="true"><i></i><i></i><i></i></span>';
  function describe(method){return recipes[method]||recipes.炒;}
  function dispose(root){active.get(root)?.();active.delete(root);}
- function mount(root,{dish,state,ingredients,ingredientArt,side,onChange}){
+ function mount(root,{dish,state,ingredients,ingredientArt,side,onChange,onGuide=()=>{}}){
   dispose(root);
   const config=describe(dish.method),heatMode=!!config.heat||!!config.temperature;
-  Object.assign(state,{count:Math.min(20,Math.max(0,state.count||0)),heat:state.heat||0,temperature:state.temperature||140,lid:!!state.lid,water:state.water||0,tray:!!state.tray});
+  Object.assign(state,{count:Math.min(goal,Math.max(0,state.count||0)),heat:state.heat||0,temperature:state.temperature||140,lid:!!state.lid,water:state.water||0,tray:!!state.tray});
   const section=document.createElement('section');section.className=`cooking-play method-${config.key}`;section.dataset.method=dish.method;section.setAttribute('aria-label','亲手'+config.verb+' '+dish.name);
   const items=[...Object.keys(dish.needs),...(side?[side]:[])];
-  section.innerHTML=`<div class="cooking-energy"><label for="cook-energy">${config.energy}</label><strong id="cook-action-count" role="status" aria-live="polite"></strong><progress id="cook-energy" max="20" value="${state.count}"></progress></div><div class="cooking-stage" id="cooking-stage"><img class="little-chef" src="assets/cooking/little-chef.webp" alt="陪你${config.verb}的小厨师" draggable="false"><img class="cooking-pan-art" src="assets/cooking/${config.art}.webp" alt="${{炒:'炒锅',煎:'平底煎锅',拌:'凉拌料理盆',煮:'煮汤深锅',炖:'砂锅',蒸:'竹蒸笼',烤:'烤箱'}[dish.method]}" draggable="false"><div class="pan-ingredients" aria-hidden="true">${items.map(id=>ingredientArt(ingredients.find(i=>i.id===id))).join('')}</div>${!heatMode?'<img class="cooking-spatula" src="assets/cooking/wooden-spatula.webp" alt="" draggable="false">':''}${dish.method==='煮'?'<span class="pot-bubbles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>':''}${dish.method==='烤'?'<span class="oven-glow" aria-hidden="true"></span>':''}${dish.method==='拌'?'':steam()}${dish.method==='烤'?`<img class="oven-ready-dish" src="${dish.image}" alt="${dish.name}烤好啦">`:''}<div id="pan-gesture" class="pan-gesture" ${heatMode?'hidden':''} aria-label="${config.tip}">${heatMode?'':gestureGuide(config.key)}</div><span class="chef-message" role="status"></span>${dish.method==='煎'?'<span class="frying-side">现在煎：正面</span>':''}</div><p class="cooking-tip">${config.tip}</p><div class="cooking-guide" aria-label="料理操作指引"><ol id="cook-guide-steps"></ol><p id="cook-next-step" role="status" aria-live="polite"></p><p id="cook-action-feedback" role="status" aria-live="polite"></p></div><div class="method-controls">${config.water?'<button type="button" id="add-steam-water">💧 给蒸锅加水</button><p class="water-status" id="steam-water" role="status"></p>':''}${config.lid?'<button type="button" id="cook-lid" aria-pressed="false">盖上'+(dish.method==='蒸'?'蒸笼':'锅盖')+'</button>':''}${config.tray?'<button type="button" id="oven-tray" aria-pressed="false">把烤盘放进烤箱</button>':''}${config.heat?`<label for="cook-heat">火候：<output id="heat-value"></output><input id="cook-heat" type="range" min="0" max="3" step="1" value="${state.heat}"></label><p class="heat-guide">这道菜用${config.heat===1?'小':'中'}火，调对后才积累进度。</p>`:''}${config.temperature?`<label for="oven-temperature">烤箱温度：<output id="temperature-value"></output><input id="oven-temperature" type="range" min="140" max="220" step="20" value="${state.temperature}"></label><p class="heat-guide">目标 180°C · 放好烤盘后开始烘烤</p>`:''}</div><button id="stir-food" type="button">${config.button}</button>`;
+  section.innerHTML=`<div class="cooking-energy"><label for="cook-energy">${config.energy}</label><strong id="cook-action-count" role="status" aria-live="polite"></strong><progress id="cook-energy" max="${goal}" value="${state.count}"></progress></div><div class="cooking-stage" id="cooking-stage"><img class="little-chef" src="assets/cooking/little-chef.webp" alt="陪你${config.verb}的小厨师" draggable="false"><img class="cooking-pan-art" src="assets/cooking/${config.art}.webp" alt="${{炒:'炒锅',煎:'平底煎锅',拌:'凉拌料理盆',煮:'煮汤深锅',炖:'砂锅',蒸:'竹蒸笼',烤:'烤箱'}[dish.method]}" draggable="false"><div class="pan-ingredients" aria-hidden="true">${items.map(id=>ingredientArt(ingredients.find(i=>i.id===id))).join('')}</div>${!heatMode?'<img class="cooking-spatula" src="assets/cooking/wooden-spatula.webp" alt="" draggable="false">':''}${dish.method==='煮'?'<span class="pot-bubbles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>':''}${dish.method==='烤'?'<span class="oven-glow" aria-hidden="true"></span>':''}${dish.method==='拌'?'':steam()}${dish.method==='烤'?`<img class="oven-ready-dish" src="${dish.image}" alt="${dish.name}烤好啦">`:''}<div id="pan-gesture" class="pan-gesture" ${heatMode?'hidden':''} aria-label="${config.tip}">${heatMode?'':gestureGuide(config.key)}</div><span class="chef-message" role="status"></span>${dish.method==='煎'?'<span class="frying-side">现在煎：正面</span>':''}</div><p class="cooking-tip">${config.tip}</p><div class="cooking-guide" aria-label="料理操作指引"><ol id="cook-guide-steps"></ol><p id="cook-next-step" role="status" aria-live="polite"></p><p id="cook-action-feedback" role="status" aria-live="polite"></p></div><div class="method-controls">${config.water?'<button type="button" id="add-steam-water">💧 给蒸锅加水</button><p class="water-status" id="steam-water" role="status"></p>':''}${config.lid?'<button type="button" id="cook-lid" aria-pressed="false">盖上'+(dish.method==='蒸'?'蒸笼':'锅盖')+'</button>':''}${config.tray?'<button type="button" id="oven-tray" aria-pressed="false">把烤盘放进烤箱</button>':''}${config.heat?`<label for="cook-heat">火候：<output id="heat-value"></output><input id="cook-heat" type="range" min="0" max="3" step="1" value="${state.heat}"></label><p class="heat-guide">这道菜用${config.heat===1?'小':'中'}火，调对后才积累进度。</p>`:''}${config.temperature?`<label for="oven-temperature">烤箱温度：<output id="temperature-value"></output><input id="oven-temperature" type="range" min="140" max="220" step="20" value="${state.temperature}"></label><p class="heat-guide">目标 180°C · 放好烤盘后开始烘烤</p>`:''}</div><button id="stir-food" type="button">${config.button}</button>`;
   root.append(section);
   const stage=section.querySelector('#cooking-stage'),control=section.querySelector('#stir-food'),zone=section.querySelector('#pan-gesture');
-  let pointer=null,timer=null,holding=false,holdSteps=0,suppressClick=false,disposed=false;
+  let pointer=null,timer=null,holding=false,holdSteps=0,suppressClick=false,disposed=false,lastGuide=null;
   const art=stage.querySelector('.cooking-pan-art'),chef=stage.querySelector('.little-chef');
   const feedback=section.querySelector('#cook-action-feedback');
   control.setAttribute('aria-describedby','cook-next-step');
@@ -71,18 +71,21 @@
    if(config.tray)steps.push({id:'oven-tray',text:'放入烤盘',done:state.tray});
    if(config.heat)steps.push({id:'cook-heat',text:'调到'+(config.heat===1?'小':'中')+'火',done:state.heat===config.heat});
    if(config.temperature)steps.push({id:'oven-temperature',text:'调到 180°C',done:state.temperature===config.temperature});
-   steps.push({id:heatMode?'stir-food':'pan-gesture',text:heatMode?'按住按钮攒进度':{stir:'沿箭头左右推',flip:'沿箭头向上划',mix:'沿圆圈拌大半圈'}[config.key],done:state.count>=20});
+   steps.push({id:heatMode?'stir-food':'pan-gesture',text:heatMode?'按住按钮攒进度':{stir:'沿箭头左右推',flip:'沿箭头向上划',mix:'沿圆圈拌大半圈'}[config.key],done:state.count>=goal});
+   if(state.count>=goal)for(const step of steps)step.done=true;
    const first=steps.findIndex(step=>!step.done);
    section.querySelector('#cook-guide-steps').innerHTML=steps.map((step,index)=>`<li class="${step.done?'done':index===first?'current':''}"><span>${step.done?'✓':index+1}</span>${step.text}</li>`).join('');
    for(const node of section.querySelectorAll('.guide-target'))node.classList.remove('guide-target');
    if(first>=0)section.querySelector('#'+steps[first].id)?.classList.add('guide-target');
    const text=first<0?'完成啦！可以把菜端上桌。':heatMode&&first===steps.length-1?(holding?'正在积累进度，松开按钮就暂停。':'准备好啦：按住下面的按钮不松手，能量会逐格增加。'):heatMode?`下一步：${steps[first].text}，跟着黄色提示操作。`:`跟着锅里的移动圆点${{stir:'左右推铲',flip:'向上划动翻面',mix:'画大半圈拌匀'}[config.key]}；也可以点下面的按钮。`;
    const note=section.querySelector('#cook-next-step');if(note.textContent!==text)note.textContent=text;
+   const id=steps[first]?.id,cue=first<0?'ready-serve':id==='add-steam-water'?'prep-water':id==='cook-lid'?(dish.method==='蒸'?'prep-steamer-lid':'prep-lid'):id==='oven-tray'?'prep-tray':id==='cook-heat'?(config.heat===1?'prep-low-heat':'prep-medium-heat'):id==='oven-temperature'?'prep-180':'do-'+config.key;
+   if(cue!==lastGuide){lastGuide=cue;onGuide(cue);}
   }
   function connected(){const dialog=section.closest('dialog');return !disposed&&section.isConnected&&(!dialog||dialog.open)&&!document.hidden;}
   function readyToCook(){return (!config.heat||state.heat===config.heat)&&(!config.temperature||state.temperature===config.temperature)&&(!config.lid||state.lid)&&(!config.water||state.water>0)&&(!config.tray||state.tray);}
   function message(){
-   if(state.count>=20)return dish.method==='拌'?'拌匀啦，清清爽爽可以上桌！':'做好啦，准备上桌！';
+   if(state.count>=goal)return dish.method==='拌'?'拌匀啦，清清爽爽可以上桌！':'做好啦，准备上桌！';
    if(config.water&&!state.water)return '先给蒸锅加点水，才会有蒸汽。';
    if(config.lid&&!state.lid)return '先盖好'+(dish.method==='蒸'?'蒸笼':'锅盖')+'，留住热气。';
    if(config.tray&&!state.tray)return '先把装好食材的烤盘放进去。';
@@ -92,8 +95,8 @@
   }
   function stopHold(){if(timer!==null)clearInterval(timer);timer=null;if(holding&&holdSteps>0)suppressClick=true;holding=false;control.classList.remove('is-holding');if(section.isConnected&&!disposed)guideSteps();}
   function update(){
-   const ready=state.count>=20;
-   section.querySelector('#cook-energy').value=state.count;section.querySelector('#cook-action-count').textContent=`${state.count} / 20`;
+   const ready=state.count>=goal;
+   section.querySelector('#cook-energy').value=state.count;section.querySelector('#cook-action-count').textContent=`${state.count} / ${goal}`;
    control.disabled=ready;control.textContent=ready?(dish.method==='拌'?'拌匀啦！可以端上桌':'熟啦！可以端上桌'):config.button;
    stage.classList.toggle('food-ready',ready);stage.classList.toggle('heat-working',heatMode&&readyToCook()&&!ready);stage.classList.toggle('lid-closed',state.lid);stage.classList.toggle('tray-in',state.tray);
    stage.querySelector('.chef-message').textContent=message();
@@ -109,14 +112,14 @@
    if(ready)stopHold();guideSteps();alignScene();onChange(state.count);
   }
   function step(){
-   if(!connected()||state.count>=20){stopHold();return false;}
+   if(!connected()||state.count>=goal){stopHold();return false;}
    if(!readyToCook()){update();return false;}
-   state.count++;feedback.textContent=state.count>=20?'美味进度已满！':heatMode?'火候刚刚好，继续照看。':'做得对！再来一次。';
+   state.count++;feedback.textContent=state.count>=goal?'美味进度已满！':heatMode?'火候刚刚好，继续照看。':'做得对！再来一次。';
    if(config.water&&state.count%10===0)state.water=Math.max(0,state.water-1);
    const animation='is-'+({stir:'stirring',flip:'flipping',mix:'mixing',boil:'boiling',stew:'stewing',steam:'steaming',bake:'baking'}[config.key]);
    stage.classList.remove(animation);void stage.offsetWidth;stage.classList.add(animation);update();return true;
   }
-  function startHold(){if(!heatMode||holding||state.count>=20||!connected())return;holding=true;holdSteps=0;suppressClick=false;control.classList.add('is-holding');guideSteps();timer=setInterval(()=>{if(!connected()){stopHold();return;}if(step())holdSteps++;},400);}
+  function startHold(){if(!heatMode||holding||state.count>=goal||!connected())return;holding=true;holdSteps=0;suppressClick=false;control.classList.add('is-holding');guideSteps();timer=setInterval(()=>{if(!connected()){stopHold();return;}if(step())holdSteps++;},400);}
   control.onclick=()=>{if(suppressClick){suppressClick=false;return;}step();};
   if(heatMode){
    control.addEventListener('pointerdown',event=>{if(event.button!==0)return;control.setPointerCapture(event.pointerId);startHold();});
@@ -131,7 +134,7 @@
   bind('cook-heat','input',event=>{state.heat=Number(event.target.value);update();});
   bind('oven-temperature','input',event=>{state.temperature=Number(event.target.value);update();});
   zone.addEventListener('pointerdown',event=>{
-   if(heatMode||state.count>=20||pointer||event.button!==0)return;
+   if(heatMode||state.count>=goal||pointer||event.button!==0)return;
    const rect=zone.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
    stage.classList.add('gesture-active');feedback.textContent='';
    pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,length:0,cx,cy,angle:Math.atan2(event.clientY-cy,event.clientX-cx),rotation:0};zone.setPointerCapture(event.pointerId);
@@ -147,7 +150,7 @@
    if(pointer?.id!==event.pointerId)return;
    const p=pointer;pointer=null;stage.classList.remove('gesture-active');stage.style.removeProperty('--spatula-shift');if(zone.hasPointerCapture(event.pointerId))zone.releasePointerCapture(event.pointerId);
    const valid=config.key==='stir'?Math.abs(event.clientX-p.startX)>=32:config.key==='flip'?p.startY-event.clientY>=35:config.key==='mix'?Math.abs(p.rotation)>=Math.PI*1.25:false;
-   if(valid)step();else feedback.textContent={stir:'再试试：按住圆点，左右推得远一点。',flip:'再试试：从下方圆点向上划。',mix:'再试试：沿圆圈画大半圈，直着划不会加进度。'}[config.key];
+   if(valid)step();else{const cue='try-'+config.key;if(cue!==lastGuide){lastGuide=cue;onGuide(cue);}feedback.textContent={stir:'再试试：按住圆点，左右推得远一点。',flip:'再试试：从下方圆点向上划。',mix:'再试试：沿圆圈画大半圈，直着划不会加进度。'}[config.key];}
   });
   for(const event of ['pointercancel','lostpointercapture'])zone.addEventListener(event,()=>{pointer=null;stage.classList.remove('gesture-active');stage.style.removeProperty('--spatula-shift');});
   const onVisibility=()=>{if(document.hidden)stopHold();};document.addEventListener('visibilitychange',onVisibility);window.addEventListener('pagehide',stopHold);
@@ -158,5 +161,5 @@
   function cleanup(){disposed=true;stopHold();resize.disconnect();art.removeEventListener('load',alignScene);chef.removeEventListener('load',alignScene);observer.disconnect();document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pagehide',stopHold);dialog?.removeEventListener('close',stopHold);}
   active.set(root,cleanup);update();return section;
  }
- window.GardenCookingPlay={mount,steam,describe,dispose};
+ window.GardenCookingPlay={goal,mount,steam,describe,dispose};
 })();

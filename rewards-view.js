@@ -6,7 +6,7 @@
   const producePhoto=(id,alt,cls='')=>`<img src="assets/produce/${id}.webp" alt="${alt}" class="crop-photo ${cls}" data-crop="${id}" data-produce="harvested" decoding="async" loading="${['market-crop','store-crop'].includes(cls)?'lazy':'eager'}">`;
   const hints={plant:'选一种种子，再点空菜地。',water:'点还没成熟的作物，浇水长大一步。',fertilize:'点作物，补充营养长大两步。每块地只能施一次肥。',harvest:'点金黄色的成熟菜地，把收成送到食材仓库。'};
   function chooseSeed(id){const state=r.farmState();if(state.error||!state.farm.seeds[id])return;seed=id;tool='plant';$('seed-dialog').close();render();$('reward-message').textContent='选好了 '+r.crops.find(c=>c.id===id).name+'，点一块空地播种吧！';}
-  function act(action,index,id){const result=r.farmAction(action,index,id);$('reward-message').textContent=result.ok?result.message:result.error;if(!result.ok)GardenFarmFX.shortage(result.error);render();if(result.ok&&['plant','water','fertilize','harvest'].includes(action))GardenFarmFX.show($('plot-'+index),action);if(result.ok&&action==='harvest'){$('harvest-total').classList.remove('celebrate');void $('harvest-total').offsetWidth;$('harvest-total').classList.add('celebrate');}}
+  function act(action,index,id){const harvested=action==='harvest'?r.farmState().farm.plots[index]?.crop:null;const result=r.farmAction(action,index,id);$('reward-message').textContent=result.ok?result.message:result.error;if(!result.ok)GardenFarmFX.shortage(result.error);render();if(result.ok&&['plant','water','fertilize','harvest'].includes(action))GardenFarmFX.show($('plot-'+index),action,{crop:harvested});if(result.ok&&action==='harvest'){$('harvest-total').classList.remove('celebrate');void $('harvest-total').offsetWidth;$('harvest-total').classList.add('celebrate');}}
   function render(){
     const focused=document.activeElement?.id,s=r.farmState(),f=s.farm;
     $('balance').textContent=s.error||`⭐ ${s.balance} 颗星星`;
@@ -32,7 +32,7 @@
       b.onclick=e=>{if(e.detail>=2)return;if(tool==='plant'&&!seed){if(!seedTotal)$('reward-message').textContent=GardenFarmFX.warn('seeds');$('seed-dialog').showModal();return;}act(tool,i,seed);};$('plots').append(b);
     }
     $('crop-filters').replaceChildren();for(const group of r.cropGroups){const b=document.createElement('button');b.id='crop-filter-'+group;b.textContent=group;b.setAttribute('aria-pressed',cropGroup===group);b.onclick=()=>{cropGroup=group;render();};$('crop-filters').append(b);}
-    const filtered=r.supplies.filter(i=>!i.kind||((cropGroup==='全部'||i.group===cropGroup)&&i.name.includes(query)));$('crop-results').textContent=`农场共 ${r.crops.length} 种作物 · 当前显示 ${filtered.filter(i=>i.kind).length} 种`;
+    const filtered=r.supplies.filter(i=>i.kind==='seed'&&((cropGroup==='全部'||i.group===cropGroup)&&i.name.includes(query)));$('crop-results').textContent=`农场共 ${r.crops.length} 种作物 · 当前显示 ${filtered.filter(i=>i.kind).length} 种`;
     $('supplies').replaceChildren();
     for(const item of filtered){
       const el=document.createElement('article');el.className='supply';const b=document.createElement('button');b.id='buy-'+item.id;b.className='shelf-product';
@@ -43,7 +43,7 @@
     }
     const collected=s.homestead?.cropTotal||f.harvest,total=Object.values(collected).reduce((a,b)=>a+b,0),types=r.crops.filter(c=>collected[c.id]>0).length;
     $('harvest-total').textContent=`🧺 收获 ${total} 份 · 点亮 ${types} / ${r.crops.length} 种作物`;
-    $('harvest').replaceChildren();for(const c of r.crops){const el=document.createElement('div');el.className='harvest-item'+(collected[c.id]?' collected':'');el.innerHTML=`<span class="basket-quantity" aria-label="可用 ${f.harvest[c.id]} 份">× ${f.harvest[c.id]}</span><span class="produce-basket" aria-hidden="true"><img class="basket-body" src="assets/market/produce-basket.webp" alt="">${producePhoto(c.id,'','store-crop')}</span><strong>${c.name}</strong><small>${collected[c.id]?'可用 × '+f.harvest[c.id]+' · 累计收获 '+collected[c.id]+' 份':'等你种出来'}</small>`;$('harvest').append(el);}
+    $('harvest').replaceChildren();for(const c of r.crops){const el=document.createElement('div');el.className='harvest-item'+(collected[c.id]?' collected':'')+(f.harvest[c.id]===0?' stock-empty':'');el.innerHTML=`<span class="basket-quantity" aria-label="可用 ${f.harvest[c.id]} 份">× ${f.harvest[c.id]}</span><span class="produce-basket" aria-hidden="true"><img class="basket-body" src="assets/market/produce-basket.webp" alt="">${producePhoto(c.id,'','store-crop')}</span><strong>${c.name}</strong><small>${collected[c.id]?'可用 × '+f.harvest[c.id]+' · 累计收获 '+collected[c.id]+' 份':'等你种出来'}</small>${c.id==='wheat'?'<a class="harvest-mill-link" href="kitchen.html#wheat-mill">🌾 去磨面粉</a>':''}`;$('harvest').append(el);}
     $('collection-note').textContent=types===r.crops.length?'🌈 全部作物都点亮啦！你是多彩小农夫！':types>=3?'🌷 三种植物开派对，继续探索不同种子吧！':'收获第一份，开启你的小小植物图鉴。';
     if(s.error)$('reward-message').textContent=s.error;
     if(focused)document.getElementById(focused)?.focus({preventScroll:true});
@@ -55,6 +55,7 @@
   $('farm-tab-plant').onclick=()=>{showArea('plant');history.replaceState(null,'','#plant');};$('farm-tab-ranch').onclick=()=>{showArea('ranch');history.replaceState(null,'','#ranch');};
   window.addEventListener('hashchange',()=>showArea(location.hash.slice(1)));showArea(location.hash.slice(1));
   for(const link of document.querySelectorAll('.farm-building'))link.addEventListener('click',()=>{const section=document.querySelector(link.getAttribute('href'));requestAnimationFrame(()=>section.focus({preventScroll:true}));});
+  GardenFarmFX.attachCursor($('plots'),()=>tool==='harvest'?'<img src="assets/ranch/harvest.webp" alt="">':tool==='plant'?`<img src="assets/market/seed-packet.webp" alt="">${seed?producePhoto(seed,'','cursor-seed'):''}`:`<img src="assets/ranch/${tool==='water'?'water':'feed'}.webp" alt="">`);
   render();window.addEventListener('storage',render);window.addEventListener('pageshow',render);
 window.addEventListener('garden-rewards-changed',render);
 })();

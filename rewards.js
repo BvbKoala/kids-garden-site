@@ -264,6 +264,8 @@
   extraCrops.push({id:'cilantro',name:'香菜',symbol:'🌿',cost:2,group:'葱姜蒜',story:'小小香菜，长出清香绿叶'},...['香菇','平菇','金针菇'].map((name,i)=>({id:['shiitake','oyster-mushroom','enoki'][i],name,symbol:'🍄',cost:4,group:'菌菇',story:'菌种放好，照顾小菇慢慢长大',stages:['刚放菌种','菌丝长啦','小菇朵','成熟啦']})));
   for(const c of crops)c.group=['strawberry','sunflower'].includes(c.id)?'水果与花卉':c.id==='carrot'?'根茎':c.id==='corn'?'谷物':'瓜果';
   crops.push(...extraCrops);
+  const previousCropIds=crops.map(c=>c.id);
+  crops.push({id:'wheat',name:'小麦',symbol:'🌾',cost:2,group:'谷物',story:'金黄麦穗收回家，磨成面粉做蛋糕',stages:['刚播下麦粒','嫩绿麦苗','青麦抽穗','金黄麦穗']});
   const cropGroups=['全部','叶菜','根茎','瓜果','豆类','谷物','花菜','葱姜蒜','菌菇','水果与花卉'];
   const animals=[
     {id:'chicken',name:'鸡',symbol:'🐔',cost:5,meat:'chickenMeat',extra:'egg'},
@@ -274,9 +276,11 @@
     {id:'cow',name:'牛',symbol:'🐮',cost:10,meat:'beef',extra:'milk'},
     {id:'sheep',name:'羊',symbol:'🐑',cost:8,meat:'lamb',extra:'sheepMilk'}
   ];
+  const babyNames={chicken:'小鸡',duck:'小鸭',goose:'小鹅',fish:'小鱼苗',pig:'小猪',cow:'小牛犊',sheep:'小羊羔'};
+  for(const a of animals)a.babyName=babyNames[a.id];
   const ingredients=[...crops.map(c=>({id:c.id,name:c.id==='sunflower'?'葵花籽':c.name,symbol:c.symbol,source:'crop'})),
-    ...[['chickenMeat','鸡肉','🍗'],['duckMeat','鸭肉','🍖'],['gooseMeat','鹅肉','🍖'],['fishMeat','鱼肉','🐟'],['pork','猪肉','🥩'],['beef','牛肉','🥩'],['lamb','羊肉','🥩'],['egg','鸡蛋','🥚'],['duckEgg','鸭蛋','🥚'],['gooseEgg','鹅蛋','🥚'],['milk','牛奶','🥛'],['sheepMilk','羊奶','🥛']].map(([id,name,symbol])=>({id,name,symbol,source:'animal'}))];
-  // Rice, flour, oil and seasoning are the kitchen's free everyday cupboard.
+    ...[['chickenMeat','鸡肉','🍗'],['duckMeat','鸭肉','🍖'],['gooseMeat','鹅肉','🍖'],['fishMeat','鱼肉','🐟'],['pork','猪肉','🥩'],['beef','牛肉','🥩'],['lamb','羊肉','🥩'],['egg','鸡蛋','🥚'],['duckEgg','鸭蛋','🥚'],['gooseEgg','鹅蛋','🥚'],['milk','牛奶','🥛'],['sheepMilk','羊奶','🥛']].map(([id,name,symbol])=>({id,name,symbol,source:'animal'})),{id:'flour',name:'面粉',symbol:'🥣',source:'processed'}];
+  // Rice, oil and seasoning are the kitchen's free everyday cupboard.
   const recipes=[
     ['胡萝卜浓汤','蔬菜','煮','carrot','清水'],
     ['香甜玉米杯','蔬菜','蒸','corn',''],
@@ -328,17 +332,56 @@
     ['玉米羊肉汤','肉香','煮','corn lamb','清水'],
     ['番茄羊肉面','肉香','煮','tomato lamb','面条'],
     ['田园羊肉小锅','肉香','炖','carrot pumpkin corn lamb',''],
-    ['草莓蛋糕','蛋奶','烤','strawberry egg milk','面粉、糖、黄油和淡奶油']
-  ].map(([name,group,method,items,pantry],i)=>({id:'dish-'+String(i+1).padStart(2,'0'),name,group,method,pantry,needs:Object.fromEntries(items.split(' ').map(id=>[id,1])),sides:([1,4,5,6,7,9,11,12,15,17,18].includes(i+1)||i+1>=21)?extraCrops.map(c=>c.id):[],image:'assets/dishes/dish-'+String(i+1).padStart(2,'0')+'.jpg',symbol:({蔬菜:'🥗',蛋奶:'🍮',禽肉:'🍗',鱼鲜:'🐟',肉香:'🍲'})[group]}));
-  const freshHome=f=>({version:1,animals:Object.fromEntries(animals.map(a=>[a.id,a.id==='chicken'?1:0])),feed:6,pens:Array(4).fill(null),ingredients:Object.fromEntries(ingredients.filter(i=>i.source==='animal').map(i=>[i.id,0])),cooked:{},cropTotal:{...f.harvest},tokens:[]});
-  function validHome(h){return h&&h.version===1&&count(h.feed)&&h.animals&&h.ingredients&&h.cropTotal&&h.cooked&&typeof h.cooked==='object'&&!Array.isArray(h.cooked)&&animals.every(a=>count(h.animals[a.id]))&&ingredients.filter(i=>i.source==='animal').every(i=>count(h.ingredients[i.id]))&&crops.every(c=>count(h.cropTotal[c.id]))&&Object.entries(h.cooked).every(([id,n])=>recipes.some(r=>r.id===id)&&count(n))&&Array.isArray(h.tokens)&&h.tokens.length<=100&&h.tokens.every(t=>typeof t==='string')&&Array.isArray(h.pens)&&h.pens.length===4&&h.pens.every(p=>p===null||(p&&animals.some(a=>a.id===p.animal)&&count(p.stage)&&p.stage<=3&&(p.productionFeeds===undefined||(p.stage===3&&count(p.productionFeeds)&&p.productionFeeds<=3))));}
+    ['草莓蛋糕','蛋奶','烤','strawberry egg milk','面粉、糖、黄油和淡奶油'],
+    ["白菜香菇炖肉", "肉香", "炖", "cabbage shiitake pork", ""],
+    ["蒜香小青菜", "蔬菜", "炒", "bokchoy garlic", "食用油"],
+    ["菠菜鸡蛋面", "蛋奶", "煮", "spinach egg", "面条"],
+    ["生菜黄瓜沙拉", "蔬菜", "拌", "lettuce cucumber tomato", "沙拉酱"],
+    ["芹菜牛肉丝", "肉香", "炒", "celery beef onion", "食用油"],
+    ["韭菜鸡蛋饼", "蛋奶", "煎", "chives egg", "面粉"],
+    ["蒜蓉空心菜", "蔬菜", "炒", "water-spinach garlic", "食用油"],
+    ["苋菜蘑菇汤", "蔬菜", "煮", "amaranth oyster-mushroom", "清水"],
+    ["土豆彩椒鸡丁", "禽肉", "炒", "potato bell-pepper chickenMeat", "食用油"],
+    ["萝卜莲藕排骨汤", "肉香", "炖", "radish lotus-root pork", "清水"],
+    ["茄子青椒焖肉", "肉香", "炖", "eggplant pepper pork", "酱油"],
+    ["西葫芦鸭蛋饼", "蛋奶", "煎", "zucchini duckEgg", "面粉"],
+    ["冬瓜鱼片汤", "鱼鲜", "煮", "winter-melon fishMeat ginger", "清水"],
+    ["苦瓜煎蛋", "蛋奶", "煎", "bitter-melon egg", "食用油"],
+    ["丝瓜平菇汤", "蔬菜", "煮", "luffa oyster-mushroom", "清水"],
+    ["秋葵豌豆炒蛋", "蛋奶", "炒", "okra pea egg", "食用油"],
+    ["豆角炒肉", "肉香", "炒", "green-bean pork garlic", "食用油"],
+    ["双花烩牛肉", "肉香", "炖", "broccoli cauliflower beef", "清水"],
+    ["葱香香菜蒸鱼", "鱼鲜", "蒸", "cilantro scallion ginger fishMeat", "酱油"],
+    ["微辣金针菇鸭煲", "禽肉", "炖", "enoki chili duckMeat", "酱油"],
+    ["草莓奶冻杯", "甜品", "拌", "strawberry milk", "预调凝胶基底、糖"],
+    ["红薯奶香布丁", "甜品", "蒸", "sweet-potato milk egg", "糖"],
+    ["芋泥小蛋糕", "甜品", "烤", "taro egg milk", "面粉、黄油、糖"],
+    ["山药草莓小方", "甜品", "蒸", "yam strawberry milk", "米粉、糖"],
+    ["南瓜芝麻汤圆", "甜品", "煮", "pumpkin milk", "糯米粉、黑芝麻、糖"],
+    ["玉米奶香松饼", "甜品", "煎", "corn egg milk", "面粉、糖"],
+    ["葵花籽香脆饼", "甜品", "烤", "sunflower egg", "面粉、黄油、糖"],
+    ["草莓山药慕斯", "甜品", "拌", "yam strawberry sheepMilk", "预调凝胶基底、淡奶油、糖"],
+    ["甜薯芋圆", "甜品", "煮", "sweet-potato taro milk", "木薯淀粉、糖"],
+    ["焦香羊奶蛋挞", "甜品", "烤", "egg sheepMilk", "蛋挞皮、糖"]
+  ].map(([name,group,method,items,pantry],i)=>({id:'dish-'+String(i+1).padStart(2,'0'),name,group,method,pantry,needs:Object.fromEntries(items.split(' ').map(id=>[id,1])),sides:group==='甜品'?[]:([1,4,5,6,7,9,11,12,15,17,18].includes(i+1)||i+1>=21)?extraCrops.map(c=>c.id):[],image:'assets/dishes/dish-'+String(i+1).padStart(2,'0')+'.jpg',symbol:({蔬菜:'🥗',蛋奶:'🍮',禽肉:'🍗',鱼鲜:'🐟',肉香:'🍲',甜品:'🧁'})[group]}));
+  for(const dish of recipes){if(dish.pantry.includes('面粉')){dish.needs.flour=1;dish.pantry=dish.pantry.replace(/面粉[、，]?/g,'');}}
+  const freshHome=f=>({version:1,millingVersion:1,animals:Object.fromEntries(animals.map(a=>[a.id,a.id==='chicken'?1:0])),feed:6,pens:Array(6).fill(null),ingredients:Object.fromEntries(ingredients.filter(i=>i.source!=='crop').map(i=>[i.id,0])),cooked:{},cropTotal:{...f.harvest},tokens:[]});
+  const validPen=p=>p===null||(p&&animals.some(a=>a.id===p.animal)&&count(p.stage)&&p.stage<=3&&(p.productionFeeds===undefined||(p.stage===3&&count(p.productionFeeds)&&p.productionFeeds<=3)));
+  // Old four-slot layouts are mapped in memory; reading never overwrites records.
+  function upgradeRanch(h){
+    if(h.pens.length!==4)return;
+    const fish=h.pens.filter(p=>p?.animal==='fish');
+    h.pens=h.pens.map(p=>p?.animal==='fish'?null:p).concat([fish[0]||null,fish[1]||null]);
+    if(fish.length>2)h.waitingFish=[...(h.waitingFish||[]),...fish.slice(2)];
+  }
+  function validHome(h){return h&&h.version===1&&h.millingVersion===1&&count(h.feed)&&h.animals&&h.ingredients&&h.cropTotal&&h.cooked&&typeof h.cooked==='object'&&!Array.isArray(h.cooked)&&animals.every(a=>count(h.animals[a.id]))&&ingredients.filter(i=>i.source!=='crop').every(i=>count(h.ingredients[i.id]))&&crops.every(c=>count(h.cropTotal[c.id]))&&Object.entries(h.cooked).every(([id,n])=>recipes.some(r=>r.id===id)&&count(n))&&Array.isArray(h.tokens)&&h.tokens.length<=100&&h.tokens.every(t=>typeof t==='string')&&Array.isArray(h.pens)&&[4,6].includes(h.pens.length)&&h.pens.every(validPen)&&(h.waitingFish===undefined||(Array.isArray(h.waitingFish)&&h.waitingFish.length<=4&&h.waitingFish.every(p=>validPen(p)&&p?.animal==='fish')))&&(h.pens.length===4||h.pens.every((p,i)=>!p||(p.animal==='fish')===(i>=4)));}
   const supplies=[...crops.map(c=>({...c,kind:'seed',quantity:1})),
     {id:'water',name:'清水 × 10',symbol:'💧',cost:1,quantity:10,story:'每浇一次，长大一步'},
     {id:'fertilizer',name:'肥料 × 10',symbol:'🪴',cost:1,quantity:10,story:'每块地可用一次，长大两步'}];
   const feedSupply={id:'feed',name:'饲料 × 10',cost:1,quantity:10};
-  const freshFarm=()=>({version:1,catalogVersion:2,seeds:Object.fromEntries(crops.map(c=>[c.id,c.id==='carrot'?2:0])),water:6,fertilizer:1,plots:Array(6).fill(null),harvest:Object.fromEntries(crops.map(c=>[c.id,0]))});
+  const freshFarm=()=>({version:1,catalogVersion:3,seeds:Object.fromEntries(crops.map(c=>[c.id,c.id==='carrot'?2:0])),water:6,fertilizer:1,plots:Array(6).fill(null),harvest:Object.fromEntries(crops.map(c=>[c.id,0]))});
   const count=n=>Number.isSafeInteger(n)&&n>=0;
-  function validFarm(f){return f&&f.version===1&&f.catalogVersion===2&&count(f.water)&&count(f.fertilizer)&&f.seeds&&f.harvest&&crops.every(c=>count(f.seeds[c.id])&&count(f.harvest[c.id]))&&Array.isArray(f.plots)&&f.plots.length===6&&f.plots.every(p=>p===null||(p&&crops.some(c=>c.id===p.crop)&&count(p.stage)&&p.stage<=3&&(p.productionFeeds===undefined||(p.stage===3&&count(p.productionFeeds)&&p.productionFeeds<=3))&&typeof p.fertilized==='boolean'));}
+  function validFarm(f){return f&&f.version===1&&f.catalogVersion===3&&count(f.water)&&count(f.fertilizer)&&f.seeds&&f.harvest&&crops.every(c=>count(f.seeds[c.id])&&count(f.harvest[c.id]))&&Array.isArray(f.plots)&&f.plots.length===6&&f.plots.every(p=>p===null||(p&&crops.some(c=>c.id===p.crop)&&count(p.stage)&&p.stage<=3&&(p.productionFeeds===undefined||(p.stage===3&&count(p.productionFeeds)&&p.productionFeeds<=3))&&typeof p.fertilized==='boolean'));}
   // Add only new catalog counters in memory. Never repair/reset legacy counters.
   function upgradeCropCatalog(s){
     const f=s.farm;if(!f||f.catalogVersion!==undefined)return;
@@ -362,8 +405,14 @@
       if (typeof s.legacyImported!=='boolean' || !s.owned.every(id=>catalog.some(i=>i.id===id)) || !s.placed.every(id=>s.owned.includes(id)) || !s.discoveries.every(id=>typeof id==='string') || !s.events.every(e=>e && typeof e.type==='string' && typeof e.detail==='string' && Number.isSafeInteger(e.amount) && typeof e.date==='string') || !Object.values(s.days).every(d=>d && Number.isSafeInteger(d.points) && d.points>=0 && Number.isSafeInteger(d.rounds) && d.rounds>=0 && Array.isArray(d.subjects) && (d.checkInBonusClaimed===undefined||typeof d.checkInBonusClaimed==='boolean'))) throw Error();
       if(s.settled!==undefined&&(!Array.isArray(s.settled)||!s.settled.every(id=>typeof id==='string')))throw Error();
       upgradeCropCatalog(s);
+      if(s.farm?.catalogVersion===2){const f=s.farm;if(!previousCropIds.every(id=>count(f.seeds?.[id])&&count(f.harvest?.[id])))throw Error();
+        if(s.homestead&&!previousCropIds.every(id=>count(s.homestead.cropTotal?.[id])))throw Error();
+        for(const map of [f.seeds,f.harvest,s.homestead?.cropTotal].filter(Boolean)){if(!Object.hasOwn(map,'wheat'))map.wheat=0;}f.catalogVersion=3;
+      }
+      if(s.homestead&&s.homestead.millingVersion===undefined){const h=s.homestead;if(!h.ingredients||Array.isArray(h.ingredients))throw Error();if(!Object.hasOwn(h.ingredients,'flour'))h.ingredients.flour=0;h.millingVersion=1;}
       if(s.farm!==undefined&&!validFarm(s.farm))throw Error();
       if(s.homestead!==undefined&&(!s.farm||!validHome(s.homestead)))throw Error();
+      if(s.homestead)upgradeRanch(s.homestead);
       error='';return s;
     } catch { error='学习奖励暂时无法读取，请家长先备份记录。'; return null; }
   }
@@ -437,8 +486,8 @@
           f.harvest[plot.crop]++;f.plots[index]=null;record(s,'farm-harvest',0,plot.crop);message=`收获一份${crop.name}！收获篮又丰富啦！`;
         }else{
           if(plot.stage===3)return reject('已经成熟啦，用收获篮采下来吧。');
-          if(action==='water'){if(!f.water)return reject('清水用完啦，去种子铺兑换吧。');f.water--;plot.stage++;message='咕嘟咕嘟，喝饱水又长大一步！';}
-          else if(action==='fertilize'){if(plot.fertilized)return reject('这块地已经施过肥啦，再浇点水吧。');if(!f.fertilizer)return reject('肥料用完啦，去种子铺兑换吧。');f.fertilizer--;plot.fertilized=true;plot.stage=Math.min(3,plot.stage+2);message='营养加油站！一下长大两步。';}
+          if(action==='water'){if(!f.water)return reject('清水用完啦，去补给兑换站兑换吧。');f.water--;plot.stage++;message='咕嘟咕嘟，喝饱水又长大一步！';}
+          else if(action==='fertilize'){if(plot.fertilized)return reject('这块地已经施过肥啦，再浇点水吧。');if(!f.fertilizer)return reject('肥料用完啦，去补给兑换站兑换吧。');f.fertilizer--;plot.fertilized=true;plot.stage=Math.min(3,plot.stage+2);message='营养加油站！一下长大两步。';}
           else return reject('请先选一个工具。');
           if(plot.stage===3)message=`${crop.name}成熟啦！换收获篮来采摘吧。`;
         }
@@ -453,7 +502,13 @@
     const s=read();if(!s)return {ok:false,error};
     s.farm=s.farm||freshFarm();s.homestead=s.homestead||freshHome(s.farm);
     const f=s.farm,h=s.homestead,reject=error=>({ok:false,error});let message='';
-    if(action==='buy'){
+    if(action==='grind'){
+      if(typeof token!=='string'||!token||token.length>100)return reject('请重新打开小磨坊。');
+      if(h.tokens.includes(token))return reject('这份面粉已经收好啦。');
+      if(!f.harvest.wheat)return reject('还没有小麦，先去农场收获吧。');
+      if(!Number.isSafeInteger(h.ingredients.flour+1))return reject('面粉仓库装满啦。');
+      f.harvest.wheat--;h.ingredients.flour++;h.tokens.push(token);h.tokens=h.tokens.slice(-100);record(s,'mill',0,'wheat:flour');message='一份小麦磨成一份面粉啦，可以做蛋糕了！';
+    }else if(action==='buy'){
       const a=animals.find(a=>a.id===id),cost=a?a.cost:id===feedSupply.id?feedSupply.cost:0;
       if(!cost)return reject('找不到这件牧场物品。');
       if(!Number.isSafeInteger(purchaseCount)||purchaseCount<1)return reject('请选择正确的兑换数量。');
@@ -461,7 +516,7 @@
       if(!Number.isSafeInteger(total)||!Number.isSafeInteger(quantity)||!Number.isSafeInteger(s.spent+total))return reject('兑换数量太多啦。');
       if(s.earned-s.spent<total)return reject('星星还不够，慢慢学习再来吧。');
       const old=a?h.animals[id]:h.feed;if(!Number.isSafeInteger(old+quantity))return reject('仓库装满啦。');
-      s.spent+=total;if(a)h.animals[id]+=quantity;else h.feed+=quantity;record(s,'ranch-buy',-total,id);message=a?`${a.name}宝宝 × ${quantity} 来到牧场啦！`:`${quantity} 份饲料装好啦！`;
+      s.spent+=total;if(a)h.animals[id]+=quantity;else h.feed+=quantity;record(s,'ranch-buy',-total,id);message=a?`${a.babyName} × ${quantity} 来到牧场啦！`:`${quantity} 份饲料装好啦！`;
     }else if(action==='cook'){
       const recipe=recipes.find(r=>r.id===id);if(!recipe)return reject('找不到这道菜。');
       if(typeof token!=='string'||!token||token.length>100)return reject('请重新打开这道菜。');
@@ -474,11 +529,11 @@
       const first=!h.cooked[id];h.cooked[id]=(h.cooked[id]||0)+1;h.tokens.push(token);h.tokens=h.tokens.slice(-100);record(s,'cook',0,id);
       message=first?`🏅 ${recipe.name}做好啦！新勋章点亮！`:`${recipe.name}又做好一份啦！`;
     }else{
-      if(!Number.isInteger(index)||index<0||index>=4)return reject('请选择一个小窝。');
+      if(!Number.isInteger(index)||index<0||index>=6)return reject('请选择一个小窝。');
       const pen=h.pens[index];
       if(action==='adopt'){
-        const a=animals.find(a=>a.id===id);if(!a)return reject('先选一种动物。');if(pen)return reject('这个小窝已经有伙伴啦。');if(!h.animals[id])return reject('先到牧场商店兑换动物宝宝吧。');
-        h.animals[id]--;h.pens[index]={animal:id,stage:0};message=`${a.name}宝宝住进小窝啦！先喂一顿饭。`;
+        const a=animals.find(a=>a.id===id);if(!a)return reject('先选一种动物。');if(pen)return reject('这个小窝已经有伙伴啦。');if((id==='fish')!==(index>=4))return reject(index>=4?'池塘只住小鱼，请选择小鱼苗。':'陆地伙伴住草地，小鱼要住池塘。');if(id==='fish'&&h.waitingFish?.length){h.pens[index]=h.waitingFish.shift();return save(s)?{ok:true,message:'原来的小鱼搬进池塘啦，成长进度保留。'}:{ok:false,error};}if(!h.animals[id])return reject('先到牧场商店兑换动物宝宝吧。');
+        h.animals[id]--;h.pens[index]={animal:id,stage:0};message=`${a.babyName}住进小窝啦！先喂一顿饭。`;
       }else{
         if(!pen)return reject('这个小窝还是空的。');const a=animals.find(a=>a.id===pen.animal);
         if(action==='collect-meat'||action==='collect-extra'){
@@ -491,7 +546,7 @@
         }else{
           const producing=pen.stage===3&&a.extra&&pen.productionFeeds!==undefined&&pen.productionFeeds<3;
           if(pen.stage===3&&!producing)return reject('已经准备好啦，领取食材吧。');
-          if(!producing&&pen.stage===1){if(action!=='water')return reject('这一阶段需要添水。');if(!f.water)return reject('清水不够，到种子铺兑换吧。');f.water--;}
+          if(!producing&&pen.stage===1){if(action!=='water')return reject('这一阶段需要添水。');if(!f.water)return reject('清水不够，到补给兑换站兑换吧。');f.water--;}
           else{if(action!=='feed')return reject('这一阶段需要喂食。');if(id==='feed'){if(!h.feed)return reject('饲料用完啦，可以兑换或用收获的作物喂食。');h.feed--;}
             else{if(!['corn','carrot','pumpkin'].includes(id))return reject('请选择饲料、玉米、胡萝卜或南瓜。');if(!f.harvest[id])return reject('这种作物还没收获呢。');f.harvest[id]--;}}
           if(producing){pen.productionFeeds++;message=pen.productionFeeds===3?'新一份蛋奶准备好啦！点围栏里的产出收获。':`喂养进度 ${pen.productionFeeds}/3，再喂 ${3-pen.productionFeeds} 次就有新产出。`;}else{pen.stage++;message=pen.stage===3?`${a.name}长大啦！可以领取食材。`:pen.stage===1?'吃饱啦！下一步添水。':'喝饱啦！再喂一次就长大。';}
