@@ -166,7 +166,7 @@
     root.querySelectorAll('[data-choice],[data-tile],#observe,#animate,#restart-trace').forEach(b=>b.disabled=true);feedback(text);recordNotice();
     await audio.play('../shared/audio/'+(current.mode==='trace'?'practice-done':'great')+'.mp3',prefs.sound);
     if(round!==current||!current.locked)return;
-    setTimeout(()=>{if(round!==current||!current.locked)return;current.index++;draw();},1200);
+    current.index++;draw();
   }
   function finish(){
     const current=round;if(!current||current.finished||current.index!==current.targets.length||!current.targets.length)return;current.finished=true;

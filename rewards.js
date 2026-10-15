@@ -405,18 +405,21 @@
   function toggle(id) {const s=read();if(!s||!s.owned.includes(id))return false;s.placed=s.placed.includes(id)?s.placed.filter(x=>x!==id):[...s.placed,id];return save(s);}
   function farmState(){const s=snapshot();return {...s,farm:s.farm||freshFarm()};}
   // Farm purchases and inventory share the existing ledger: a single atomic write.
-  function farmAction(action,index,cropId){
+  function farmAction(action,index,cropId,purchaseCount=1){
     const s=read();if(!s)return {ok:false,error};
     const f=s.farm||freshFarm();s.farm=f;
     const reject=message=>({ok:false,error:message});
     let message='';
     if(action==='buy'){
       const item=supplies.find(i=>i.id===cropId);if(!item)return reject('找不到这件物品。');
-      if(s.earned-s.spent<item.cost)return reject('星星还不够，先去完成一次学习小冒险吧。');
+      if(!Number.isSafeInteger(purchaseCount)||purchaseCount<1)return reject('请选择正确的兑换数量。');
+      const total=item.cost*purchaseCount,quantity=item.quantity*purchaseCount;
+      if(!Number.isSafeInteger(total)||!Number.isSafeInteger(quantity)||!Number.isSafeInteger(s.spent+total))return reject('兑换数量太多啦。');
+      if(s.earned-s.spent<total)return reject('星星还不够，先去完成一次学习小冒险吧。');
       const old=item.kind==='seed'?f.seeds[item.id]:f[item.id];
-      if(!Number.isSafeInteger(old+item.quantity))return reject('仓库已经装满啦。');
-      s.spent+=item.cost;if(item.kind==='seed')f.seeds[item.id]+=item.quantity;else f[item.id]+=item.quantity;
-      record(s,'farm-buy',-item.cost,item.id);message=`${item.name} 放进仓库啦！`;
+      if(!Number.isSafeInteger(old+quantity))return reject('仓库已经装满啦。');
+      s.spent+=total;if(item.kind==='seed')f.seeds[item.id]+=quantity;else f[item.id]+=quantity;
+      record(s,'farm-buy',-total,item.id);message=`${item.name} × ${purchaseCount}，放进仓库啦！`;
     }else{
       if(!Number.isInteger(index)||index<0||index>=6)return reject('请选一块菜地。');
       const plot=f.plots[index];
@@ -446,15 +449,19 @@
   function kitchenState(){const s=farmState();return {...s,homestead:s.homestead||freshHome(s.farm)};}
   function available(s,id){return crops.some(c=>c.id===id)?s.farm.harvest[id]:s.homestead.ingredients[id];}
   function missing(s,recipe){return Object.entries(recipe.needs).filter(([id,n])=>available(s,id)<n).map(([id,n])=>({...ingredients.find(i=>i.id===id),quantity:n-available(s,id)}));}
-  function homeAction(action,index,id,token,side){
+  function homeAction(action,index,id,token,side,purchaseCount=1){
     const s=read();if(!s)return {ok:false,error};
     s.farm=s.farm||freshFarm();s.homestead=s.homestead||freshHome(s.farm);
     const f=s.farm,h=s.homestead,reject=error=>({ok:false,error});let message='';
     if(action==='buy'){
       const a=animals.find(a=>a.id===id),cost=a?a.cost:id===feedSupply.id?feedSupply.cost:0;
-      if(!cost)return reject('找不到这件牧场物品。');if(s.earned-s.spent<cost)return reject('星星还不够，慢慢学习再来吧。');
-      const old=a?h.animals[id]:h.feed,quantity=a?1:feedSupply.quantity;if(!Number.isSafeInteger(old+quantity))return reject('仓库装满啦。');
-      s.spent+=cost;if(a)h.animals[id]++;else h.feed+=quantity;record(s,'ranch-buy',-cost,id);message=a?`${a.name}宝宝来到牧场啦！`:'十份饲料装好啦！';
+      if(!cost)return reject('找不到这件牧场物品。');
+      if(!Number.isSafeInteger(purchaseCount)||purchaseCount<1)return reject('请选择正确的兑换数量。');
+      const total=cost*purchaseCount,quantity=(a?1:feedSupply.quantity)*purchaseCount;
+      if(!Number.isSafeInteger(total)||!Number.isSafeInteger(quantity)||!Number.isSafeInteger(s.spent+total))return reject('兑换数量太多啦。');
+      if(s.earned-s.spent<total)return reject('星星还不够，慢慢学习再来吧。');
+      const old=a?h.animals[id]:h.feed;if(!Number.isSafeInteger(old+quantity))return reject('仓库装满啦。');
+      s.spent+=total;if(a)h.animals[id]+=quantity;else h.feed+=quantity;record(s,'ranch-buy',-total,id);message=a?`${a.name}宝宝 × ${quantity} 来到牧场啦！`:`${quantity} 份饲料装好啦！`;
     }else if(action==='cook'){
       const recipe=recipes.find(r=>r.id===id);if(!recipe)return reject('找不到这道菜。');
       if(typeof token!=='string'||!token||token.length>100)return reject('请重新打开这道菜。');
@@ -495,5 +502,6 @@
     return save(s)?{ok:true,message}:{ok:false,error};
   }
 
-  globalThis.GardenRewards={snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
+  function purchase(kind,id,quantity=1){if(kind==='farm')return farmAction('buy',null,id,quantity);if(kind==='ranch')return homeAction('buy',null,id,undefined,undefined,quantity);return {ok:false,error:'找不到这个商店。'};}
+  globalThis.GardenRewards={purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
 })();

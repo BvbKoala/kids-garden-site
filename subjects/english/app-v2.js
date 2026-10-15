@@ -189,11 +189,9 @@ function feedback(text) {
   document.querySelector('#announcement').textContent=text;
 }
 function lockOptions() { document.querySelectorAll('[data-choice]').forEach(b=>b.disabled=true); }
-function scheduleNext(current, round, pass) {
-  setTimeout(()=>{
-    if(game!==current||game.round!==round||game.pass!==pass||!game.locked||game.finished)return;
-    game.round++;drawRound();
-  },1000);
+function advanceRound(current, round, pass) {
+  if(game!==current||game.round!==round||game.pass!==pass||!game.locked||game.finished)return;
+  game.round++;drawRound();
 }
 async function answer(id) {
   if(!game||game.locked||game.finished||!game.options.some(w=>w.id===id))return;
@@ -215,7 +213,7 @@ async function answer(id) {
     if(note)note.textContent='两次机会用完了 · 先认识它，稍后再来';
     feedback(game.kind==='match'?`这是 ${game.target.letter} 的小写 ${game.target.lower}，稍后再认一次。`:`这是 ${game.target.word} · ${game.target.zh}，稍后再认一次。`);
     await speak(targetAudio());
-    if(game===current&&game.round===round&&game.pass===pass)scheduleNext(current,round,pass);
+    if(game===current&&game.round===round&&game.pass===pass)advanceRound(current,round,pass);
     return;
   }
   game.locked=true;button?.classList.add('correct');
@@ -227,7 +225,7 @@ async function answer(id) {
   lockOptions();
   const note=document.querySelector('#attempt-note');if(note)note.textContent=game.firstTry?'认对啦！': '认对啦，稍后再认一次。';
   await speak('great');
-  if(game===current&&game.round===round&&game.pass===pass)scheduleNext(current,round,pass);
+  if(game===current&&game.round===round&&game.pass===pass)advanceRound(current,round,pass);
 }
 
 function complete() {

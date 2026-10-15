@@ -2,14 +2,14 @@
  const r=GardenRewards,$=id=>document.getElementById(id);let animal='chicken',feed='feed';const busy=new Set();
  const image=(id,alt,cls='')=>`<img src="assets/ranch/${id}.webp" alt="${alt}" class="${cls}" decoding="async">`;
  function button(id,label,fn,disabled=false,icon){const b=document.createElement('button');b.id=id;if(icon)b.innerHTML=image(icon,'','action-icon')+'<span>'+label+'</span>';else b.textContent=label;b.disabled=disabled;b.onclick=e=>{if(e.detail<2)fn();};return b;}
- function run(action,index,id){if(busy.has(index))return;const res=r.homeAction(action,index,id);$('ranch-message').textContent=res.ok?res.message:res.error;
+ function run(action,index,id){if(busy.has(index))return;const res=r.homeAction(action,index,id);$('ranch-message').textContent=res.ok?res.message:res.error;if(!res.ok)GardenFarmFX.shortage(res.error);
   if(res.ok&&Number.isInteger(index)){busy.add(index);render();const kind=action.startsWith('collect-')?'harvest':action;GardenFarmFX.show($('pen-'+index),kind);setTimeout(()=>{busy.delete(index);render();},1100);}else render();
  }
  function render(){const s=r.kitchenState(),h=s.homestead,f=s.farm,focus=document.activeElement?.id;
   $('ranch-stock').innerHTML=image('feed','','stock-icon')+'<span>饲料 × '+h.feed+'</span>'+image('water','','stock-icon')+'<span>水 × '+f.water+'</span>';
   function choice(group,id,name,quantity,src,selected,onSelect){
    const b=document.createElement('button');b.type='button';b.id=group+'-'+id;b.className='pocket-card'+(quantity?'':' empty');b.setAttribute('aria-pressed',String(selected));b.setAttribute('aria-label',name+'，现有 '+quantity+'，'+(selected?'已选中':'点击选择'));
-   b.innerHTML=`<img src="${src}" alt="" decoding="async"><strong>${name}</strong><span class="pocket-count">× ${quantity}</span><span class="pocket-check" aria-hidden="true">${selected?'✓':''}</span>`;b.onclick=()=>{onSelect();render();};return b;
+   b.innerHTML=`<img src="${src}?v=1.10.1" alt="${name}" width="85" height="75" decoding="async"><strong>${name}</strong><span class="pocket-count">× ${quantity}</span><span class="pocket-check" aria-hidden="true">${selected?'✓':''}</span>`;b.onclick=()=>{onSelect();render();};return b;
   }
   $('animal-choice').replaceChildren(...r.animals.map(a=>choice('choose-animal',a.id,a.name+'宝宝',h.animals[a.id],'assets/ranch/'+a.id+'.webp',animal===a.id,()=>{animal=a.id;})));
   $('feed-choice').replaceChildren(...['feed','corn','carrot','pumpkin'].map(id=>{const name=id==='feed'?'饲料':r.crops.find(c=>c.id===id).name;return choice('choose-feed',id,name,id==='feed'?h.feed:f.harvest[id],id==='feed'?'assets/ranch/feed.webp':'assets/produce/'+id+'.webp',feed===id,()=>{feed=id;});}));
@@ -25,7 +25,7 @@
    else{if(producing)actions.append(button('care-'+i,`喂养 · ${p.productionFeeds}/3`,()=>run('feed',i,feed),locked,'feed'));actions.append(button('meat-'+i,`领取${r.ingredients.find(x=>x.id===a.meat).name} × 2`,()=>run('collect-meat',i),locked,'harvest'));if(ready)actions.append(button('extra-'+i,`收${r.ingredients.find(x=>x.id===a.extra).name} × 1`,()=>run('collect-extra',i),locked,'harvest'));}
    $('pens').append(el);
   }
-  $('animal-shop').replaceChildren();for(const a of [...r.animals,r.feedSupply]){const el=document.createElement('article');el.innerHTML=image(a.id,a.name,'shop-animal')+`<strong>${a.name}${a.id==='feed'?'':'宝宝'}</strong>`;el.append(button('ranch-buy-'+a.id,`⭐ ${a.cost} · 兑换`,()=>run('buy',null,a.id),!!s.error||s.balance<a.cost));$('animal-shop').append(el);}
+  $('animal-shop').replaceChildren();for(const a of [...r.animals,r.feedSupply]){const el=document.createElement('article');el.innerHTML=image(a.id,a.name,'shop-animal')+`<strong>${a.name}${a.id==='feed'?'':'宝宝'}</strong>`;el.append(button('ranch-buy-'+a.id,`⭐ ${a.cost} · 兑换`,()=>GardenPurchase.open({kind:'ranch',id:a.id,name:a.name+(a.id==='feed'?'':'宝宝'),cost:a.cost,quantity:a.quantity||1,unit:a.id==='feed'?'份':'只',packLabel:'组',image:'assets/ranch/'+a.id+'.webp',onResult:result=>{$('ranch-message').textContent=result.message;render();}}),!!s.error||s.balance<a.cost));$('animal-shop').append(el);}
   if(s.error)$('ranch-message').textContent=s.error;
   if(focus)document.getElementById(focus)?.focus({preventScroll:true});
  }

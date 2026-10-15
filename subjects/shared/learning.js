@@ -106,7 +106,7 @@ async function answer(index){
  if(current.options[index]!==q.answer){feedback.textContent='没关系，再听听、想一想。';status(feedback.textContent);speak(['retry',...clipForQ(q)]);return;}
  current.locked=true;root.querySelectorAll('[data-choice]').forEach((b,i)=>{b.disabled=true;if(i===index)b.classList.add('correct');});feedback.textContent=q.explanation;status(q.explanation);
  await speak(q.explanationAudio?['great',q.explanationAudio]:['great']);
- setTimeout(()=>{if(round!==current||!current.locked)return;current.index++;draw();},1200);
+ if(round!==current||!current.locked)return;current.index++;draw();
 }
 function finish(){
  const current=round;if(!current||current.finished||current.index!==current.questions.length||!current.questions.length)return;current.finished=true;stopSound();
