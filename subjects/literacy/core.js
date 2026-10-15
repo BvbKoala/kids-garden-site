@@ -40,6 +40,21 @@
         state.migrated=true;if(changed)save();
       } catch {error='旧识字记录暂时无法读取，原始数据已保留，请家长备份检查。';}
     }
+    const orderApi=globalThis.GardenCourseOrder;
+    const legacyPassed=catalog.lessons.filter(unit=>(state.completed[unit.id+':listen']||state.completed[unit.id+':build'])&&unit.characters.every(char=>(state.stats[byChar.get(char).id]?.correct||0)>0)).map(unit=>unit.id);
+    const sequence=orderApi.open(catalog.lessons.map(unit=>unit.id),state.courseOrder,legacyPassed);
+    const loadedCoverage=state.courseOrder?.coverage;
+    const coverage={};
+    if(loadedCoverage&&typeof loadedCoverage==='object')for(const unit of catalog.lessons){
+      if(Array.isArray(loadedCoverage[unit.id]))coverage[unit.id]=[...new Set(loadedCoverage[unit.id].filter(id=>valid.has(id)&&catalog.characters.find(c=>c.id===id)?.lesson===unit.id))];
+    }
+    state.courseOrder={...sequence.state,coverage};
+    // Keep the sequence and saved object shared, including its passed map.
+    sequence.state=state.courseOrder;
+    function courseAllowed(id){return sequence.allowed(id);}
+    function currentCourse(){return catalog.lessons.find(unit=>unit.id===sequence.current());}
+    function coursePassed(id){return sequence.done(id);}
+    function covered(id){return state.courseOrder.coverage[id]||[];}
     function seen(entry) {if(!state.seen.includes(entry.id))state.seen.push(entry.id);save();}
     function answer(entry,correct) {
       const previous=state.stats[entry.id]||{correct:0,attempts:0,due:0};
@@ -48,14 +63,24 @@
       else stat.due=Date.now();
       state.stats[entry.id]=stat;save();
     }
-    function complete(lesson,mode) {state.rounds++;const key=lesson+':'+mode;state.completed[key]=(state.completed[key]||0)+1;return save();}
+    function complete(lesson,mode,entries=[]) {
+      const unit=catalog.lessons.find(unit=>unit.id===lesson);
+      if(unit&&!courseAllowed(lesson))return false;
+      state.rounds++;const key=lesson+':'+mode;state.completed[key]=(state.completed[key]||0)+1;
+      if(unit&&['listen','build'].includes(mode)){
+        const ids=entries.filter(entry=>entry.lesson===lesson&&(state.stats[entry.id]?.correct||0)>0).map(entry=>entry.id);
+        state.courseOrder.coverage[lesson]=[...new Set([...covered(lesson),...ids])];
+        if(unit.characters.every(char=>covered(lesson).includes(byChar.get(char).id)))sequence.pass(lesson);
+      }
+      return save();
+    }
     function review(level,limit=5) {
-      const entries=catalog.characters.filter(c=>c.level===level&&state.seen.includes(c.id));
+      const entries=catalog.characters.filter(c=>c.level===level&&state.seen.includes(c.id)&&courseAllowed(c.lesson));
       const overdue=entries.filter(c=>!state.stats[c.id]||state.stats[c.id].due<=Date.now());
       const pool=overdue.length?overdue:entries;
       return shuffle(pool).sort((a,b)=>(state.stats[a.id]?.due||0)-(state.stats[b.id]?.due||0)).slice(0,limit);
     }
-    return {state,save,seen,answer,complete,review,get error(){return error;},get blocked(){return blocked;}};
+    return {state,save,seen,answer,complete,review,courseAllowed,currentCourse,coursePassed,covered,get error(){return error;},get blocked(){return blocked;}};
   }
   globalThis.LiteracyCore={KEY,open,shuffle};
 })();

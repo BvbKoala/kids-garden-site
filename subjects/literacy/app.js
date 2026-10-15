@@ -1,6 +1,7 @@
 (() => {
   const catalog=LiteracyCatalog,core=LiteracyCore,audio=LiteracyAudio;
   const store=core.open(localStorage,catalog,GardenContent.literacyGroups),prefs=store.state;
+  const opening=store.currentCourse();if(opening){prefs.lesson=opening.id;prefs.level=opening.level;}
   const root=document.querySelector('#learning'),byChar=new Map(catalog.characters.map(c=>[c.char,c]));
   const byId=new Map(catalog.characters.map(c=>[c.id,c]));
   const symbols={'一':'1️⃣','二':'2️⃣','三':'3️⃣','日':'☀️','月':'🌙','山':'⛰️','水':'💧','火':'🔥','木':'🌳','人':'🧒','口':'👄','手':'✋','足':'🦶','目':'👁️','耳':'👂','猫':'🐈','狗':'🐕','鱼':'🐟','鸟':'🐦','马':'🐎','牛':'🐄','花':'🌼','草':'🌱','雨':'🌧️','云':'☁️','果':'🍎','米':'🍚','门':'🚪','家':'🏡','车':'🚗','书':'📚','笔':'✏️'};
@@ -20,22 +21,23 @@
     if(round!==current||current.locked||current.index!==index)return;
     playWord(word);
   }
+  function locked(){announce('先完成前一课的听词找字或词语拼搭，再解锁这里。');}
   function level(){return catalog.levels.find(l=>l.id===prefs.level);}
   function home(){
     round=null;lastLesson=null;
     const current=level(),lessons=catalog.lessons.filter(l=>l.level===prefs.level),count=catalog.characters.filter(c=>c.level===prefs.level&&prefs.seen.includes(c.id)).length;
     page=Math.min(page,Math.ceil(lessons.length/8)-1);
-    const selected=lessons.find(l=>l.id===prefs.lesson)||lessons[0];
-    screen(`<section class="literacy-hero"><span class="mascot" aria-hidden="true">🐌</span><span class="level-pill">${current.symbol} ${current.name}</span><h1>识字小花园</h1><p>小蜗牛陪你认识汉字朋友。听一听、拼一拼，再描一描。</p><div class="sprout-progress"><progress value="${count}" max="${current.count}" aria-label="本级已接触 ${count} / ${current.count} 字"></progress><span>已接触 <strong>${count} / ${current.count}</strong> 字</span></div><p class="reading-note">每次只认识几个朋友，慢慢来。</p></section>${notice()}<div class="journey-actions"><button class="primary" id="continue-lesson">🌱 继续探索</button><button id="review" ${store.review(prefs.level).length?'':'disabled'}>🧺 浇水复习</button></div><div class="section-row"><h2>${current.symbol} 选一个小冒险</h2><span>每组 5–6 字</span></div><div class="lesson-list">${lessons.slice(page*8,page*8+8).map(l=>{
-      const seen=l.characters.filter(c=>prefs.seen.includes(byChar.get(c).id)).length,done=Object.keys(prefs.completed).some(k=>k.startsWith(l.id+':'));
+    const selected=store.currentCourse();
+    screen(`<section class="literacy-hero"><span class="mascot" aria-hidden="true">🐌</span><span class="level-pill">${current.symbol} ${current.name}</span><h1>识字小花园</h1><p>小蜗牛陪你认识汉字朋友。听一听、拼一拼，再描一描。</p><div class="sprout-progress"><progress value="${count}" max="${current.count}" aria-label="本级已接触 ${count} / ${current.count} 字"></progress><span>已接触 <strong>${count} / ${current.count}</strong> 字</span></div><p class="reading-note">已通过 ${Object.keys(prefs.courseOrder.passed).length} / ${catalog.lessons.length} 课 · 按顺序逐课解锁，已通过的课可以重练。</p></section>${notice()}<div class="journey-actions"><button class="primary" id="continue-lesson">🌱 继续探索</button><button id="review" ${store.review(prefs.level).length?'':'disabled'}>🧺 浇水复习</button></div><div class="section-row"><h2>${current.symbol} 选一个小冒险</h2><span>每组 5–6 字</span></div><div class="lesson-list">${lessons.slice(page*8,page*8+8).map(l=>{
+      const seen=l.characters.filter(c=>prefs.seen.includes(byChar.get(c).id)).length,done=store.coursePassed(l.id),unlocked=store.courseAllowed(l.id);
       const [name,symbol]=themes[(l.number-1)%themes.length];
-      return `<button class="lesson-tile ${seen===l.characters.length?'visited':''}" data-lesson="${l.id}"><strong>${symbol} ${name}</strong><small>第 ${l.number} 站${done?' · 已完成小冒险':''}</small><span class="unit-chars">${l.characters.map(c=>`<span>${c}</span>`).join('')}</span><small>已接触 ${seen} / ${l.characters.length} 字</small></button>`;
-    }).join('')}</div><div class="page-controls"><button id="previous-page" aria-label="上一页冒险" ${page===0?'disabled':''}>←</button><span>第 ${page+1} / ${Math.ceil(lessons.length/8)} 页</span><button id="next-page" aria-label="下一页冒险" ${(page+1)*8>=lessons.length?'disabled':''}>→</button></div><section class="search-box"><label for="character-search">🔎 家长找字 · 全部 3000 字</label><input id="character-search" placeholder="输入汉字或词语，如：月、学校" maxlength="16" autocomplete="off"><p id="search-summary" role="status"></p><div id="search-results" class="search-results"></div></section><details class="settings"><summary>家长 · 分级与声音</summary><p>4–6 岁默认从基础 300 字开始。分级表示课程顺序，请按孩子兴趣和理解选择；不要求学前完成 3000 字。</p><label>选择学习层级<select id="level-setting">${catalog.levels.map(l=>`<option value="${l.id}" ${l.id===prefs.level?'selected':''}>${l.name} · 累计 ${l.total} 字</option>`).join('')}</select></label><label>播放声音<input id="sound-setting" type="checkbox" ${prefs.sound?'checked':''}></label><label>听音找字选项<select id="option-setting"><option value="2" ${prefs.options===2?'selected':''}>2 个</option><option value="3" ${prefs.options===3?'selected':''}>3 个</option></select></label><p>“已接触”表示看过或听过。浇水篮优先选到期复习的字；完成轮数不等于掌握程度。每轮最多 5 个目标，不计时、不扣分。描字可用手指或鼠标，也可选择看笔顺，不强求精细书写。</p><a href="../../parent.html">家长小窗</a><a href="../../records.html">下载记录备份</a><a href="legacy.html">以前的图片小屋</a></details>`);
+      return `<button class="lesson-tile ${seen===l.characters.length?'visited':''} ${unlocked?'':'course-locked'}" ${unlocked?'':'disabled'} data-lesson="${l.id}"><strong>${symbol} ${name}</strong><small>第 ${l.number} 站${done?' · 已通过':unlocked?' · 可以学习':' · 🔒 尚未解锁'}</small><span class="unit-chars">${l.characters.map(c=>`<span>${c}</span>`).join('')}</span><small>已接触 ${seen} / ${l.characters.length} 字</small></button>`;
+    }).join('')}</div><div class="page-controls"><button id="previous-page" aria-label="上一页冒险" ${page===0?'disabled':''}>←</button><span>第 ${page+1} / ${Math.ceil(lessons.length/8)} 页</span><button id="next-page" aria-label="下一页冒险" ${(page+1)*8>=lessons.length?'disabled':''}>→</button></div><section class="search-box"><label for="character-search">🔎 家长找字 · 全部 3000 字</label><input id="character-search" placeholder="输入汉字或词语，如：月、学校" maxlength="16" autocomplete="off"><p id="search-summary" role="status"></p><div id="search-results" class="search-results"></div></section><details class="settings"><summary>家长 · 分级与声音</summary><p>4–6 岁默认从基础 300 字开始。层级按顺序逐课解锁，完成前一层后才能进入下一层；不要求学前完成 3000 字。</p><label>选择学习层级<select id="level-setting">${catalog.levels.map(l=>`<option value="${l.id}" ${l.id===prefs.level?'selected':''} ${store.courseAllowed(catalog.lessons.find(unit=>unit.level===l.id).id)?'':'disabled'}>${l.name} · 累计 ${l.total} 字</option>`).join('')}</select></label><label>播放声音<input id="sound-setting" type="checkbox" ${prefs.sound?'checked':''}></label><label>听音找字选项<select id="option-setting"><option value="2" ${prefs.options===2?'selected':''}>2 个</option><option value="3" ${prefs.options===3?'selected':''}>3 个</option></select></label><p>“已接触”表示看过或听过。浇水篮优先选到期复习的字；完成轮数不等于掌握程度。每轮最多 5 个目标，不计时、不扣分。描字可用手指或鼠标，也可选择看笔顺，不强求精细书写。</p><a href="../../parent.html">家长小窗</a><a href="../../records.html">下载记录备份</a><a href="legacy.html">以前的图片小屋</a></details>`);
     root.querySelectorAll('[data-lesson]').forEach(b=>b.onclick=()=>lesson(b.dataset.lesson));
     root.querySelector('#continue-lesson').onclick=()=>lesson(selected.id);
     root.querySelector('#review').onclick=()=>start(null,'listen',store.review(prefs.level));
     root.querySelector('#previous-page').onclick=()=>{page--;home();};root.querySelector('#next-page').onclick=()=>{page++;home();};
-    root.querySelector('#level-setting').onchange=e=>{prefs.level=Number(e.target.value);prefs.lesson=catalog.lessons.find(l=>l.level===prefs.level).id;store.save();page=0;home();root.querySelector('.settings').open=true;};
+    root.querySelector('#level-setting').onchange=e=>{const first=catalog.lessons.find(unit=>unit.level===Number(e.target.value));if(!first||!store.courseAllowed(first.id)){e.target.value=prefs.level;return locked();}prefs.level=Number(e.target.value);prefs.lesson=catalog.lessons.find(l=>l.level===prefs.level).id;store.save();page=0;home();root.querySelector('.settings').open=true;};
     root.querySelector('#sound-setting').onchange=e=>{prefs.sound=e.target.checked;audio.stop();store.save();recordNotice();};
     root.querySelector('#option-setting').onchange=e=>{prefs.options=Number(e.target.value);store.save();recordNotice();};
     root.querySelector('#character-search').oninput=e=>search(e.target.value);
@@ -46,11 +48,11 @@
     const entries=catalog.characters.filter(c=>c.char===query||c.words.some(w=>w.text.includes(query)));
     summary.textContent=entries.length?`找到 ${entries.length} 个字朋友${entries.length>18?'，先显示前 18 个':''}。`:'暂时没有找到这个字或词语。';
     for(const c of entries.slice(0,18)){
-      const button=document.createElement('button');button.innerHTML=`${c.char}<small>${c.pinyin} · 第 ${c.level} 级</small>`;button.setAttribute('aria-label',`认识 ${c.char}，第 ${c.level} 级`);button.onclick=()=>detail(c,null);results.append(button);
+      const button=document.createElement('button');button.innerHTML=`${c.char}<small>${c.pinyin} · 第 ${c.level} 级</small>`;button.disabled=!store.courseAllowed(c.lesson);button.setAttribute('aria-label',`${button.disabled?'尚未解锁，':''}认识 ${c.char}，第 ${c.level} 级`);button.onclick=()=>detail(c,null);results.append(button);
     }
   }
   function lesson(id){
-    round=null;const unit=catalog.lessons.find(l=>l.id===id);if(!unit)return home();lastLesson=id;prefs.lesson=id;prefs.level=unit.level;store.save();
+    round=null;const unit=catalog.lessons.find(l=>l.id===id);if(!unit)return home();if(!store.courseAllowed(id))return locked();lastLesson=id;prefs.lesson=id;prefs.level=unit.level;store.save();
     const [name,symbol]=themes[(unit.number-1)%themes.length];
     screen(`<button id="back">← 返回小花园</button><div class="intro"><p class="level-pill">${level().name} · 第 ${unit.number} 站</p><h1>${symbol} ${name}</h1><p>先点一个字听一听，再和朋友们一起玩。</p></div>${notice()}<div class="char-cards">${unit.characters.map(char=>{
       const c=byChar.get(char);return `<article class="char-card"><button data-character="${c.id}" aria-label="认识 ${char}"><span class="char">${char}</span><span class="pinyin">${c.pinyin}</span><p>${c.words[0].text}</p><small>${prefs.seen.includes(c.id)?'见过的朋友':'点我听一听'} 🔊</small></button></article>`;
@@ -60,6 +62,7 @@
     root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>start(id,b.dataset.mode));
   }
   function detail(entry,returnTo){
+    if(!entry||!store.courseAllowed(entry.lesson))return locked();
     round=null;store.seen(entry);
     screen(`<button id="back">← 返回${returnTo?'小冒险':'小花园'}</button>${notice()}<section class="char-detail"><div><div class="game-picture" aria-hidden="true">${symbols[entry.char]||'🌱'}</div><div class="large-char">${entry.char}</div><p class="large-pinyin">${entry.pinyin}</p><p class="intro reading-note">${entry.strokes} 笔 · 部首 ${entry.radical}</p></div><div><h1>你好，${entry.char}！</h1><p>点词语听一听。它在词语里的读音标在下面。</p>${entry.words.map((w,i)=>`<button class="word-button" data-word="${i}">🔊 ${esc(w.text)}<small>${esc(w.pinyin)}</small><small>${entry.char}在这里读 ${esc(w.reading)}</small></button>`).join('')}${error()}<p class="reading-note">多音字可以在不同词语中读不同的音。</p><div class="stroke-actions"><button id="open-drawing">🖌️ 描一描这个字</button><button id="practice-character">🧩 和它拼词语</button></div></div></section>`);
     root.querySelector('#back').onclick=()=>returnTo?lesson(returnTo):home();
@@ -69,9 +72,10 @@
   }
   function start(id,mode,pool){
     if(!['listen','build','trace'].includes(mode))return;
-    const unit=catalog.lessons.find(l=>l.id===id),entries=pool||unit.characters.map(c=>byChar.get(c));
+    const unit=catalog.lessons.find(l=>l.id===id);if(id&&(!unit||!store.courseAllowed(id)))return locked();
+    const entries=(pool||(unit?unit.characters.map(c=>byChar.get(c)):[])).filter(entry=>store.courseAllowed(entry.lesson));
     if(!entries.length)return home();
-    const targets=core.shuffle(entries).sort((a,b)=>(prefs.stats[a.id]?.correct||0)-(prefs.stats[b.id]?.correct||0)).slice(0,5);
+    const targets=core.shuffle(entries).sort((a,b)=>(store.covered(id).includes(a.id)?1:0)-(store.covered(id).includes(b.id)?1:0)||(prefs.stats[a.id]?.correct||0)-(prefs.stats[b.id]?.correct||0)).slice(0,5);
     round={id:`literacy-${Date.now()}-${Math.random()}`,lesson:id||`review-level-${prefs.level}`,mode,targets,index:0,locked:false,wordIndex:0,placed:0};draw();
   }
   function feedback(text){const el=root.querySelector('.feedback');if(el)el.textContent=text;announce(text);}
@@ -165,15 +169,16 @@
     setTimeout(()=>{if(round!==current||!current.locked)return;current.index++;draw();},1200);
   }
   function finish(){
-    const current=round;if(!current||current.finished)return;current.finished=true;
-    store.complete(current.lesson,current.mode);
+    const current=round;if(!current||current.finished||current.index!==current.targets.length||!current.targets.length)return;current.finished=true;
+    store.complete(current.lesson,current.mode,current.targets);
     const reward=GardenRewards.award('literacy',`${current.lesson}-${current.mode}`,current.id);
     const note=store.error||reward.error||(reward.amount?`⭐ 获得 ${reward.amount} 颗星星${reward.bonusAmount?' · 四科打卡完成，额外 +5 颗！':''}`:'这一关的星星已经记好啦。');
-    const unit=catalog.lessons.find(l=>l.id===current.lesson),following=unit?catalog.lessons.find(l=>l.level===unit.level&&l.number===unit.number+1):null;
-    screen(`<section class="finish"><div class="symbol" aria-hidden="true">🌟</div><h1>汉字小冒险，完成啦！</h1><p>小蜗牛收到了你的新发现。认真尝试，每一小步都算数。</p><div class="completion-book" aria-label="本轮认识的汉字">${current.targets.map(c=>`<span>${c.char}</span>`).join('')}</div><p class="feedback">${esc(note)}</p>${reward.rest?'<div class="rest-panel"><h2>休息一会儿吧</h2><p>离开屏幕，喝口水、看看远处。花园会等你回来。</p></div>':''}${unit&&!following?'<div class="level-done"><h2>这一层的小路走到尽头啦！</h2><p>可以回去浇水复习，也可以请家长选择下一层。</p></div>':''}<div class="finish-actions"><a class="reward-link" href="../../rewards.html">🌱 布置花园</a><button class="primary" id="next-round">下一关</button><button id="rest">休息一下</button><button id="go-home">回到识字花园</button></div></section>`);
+    const unit=catalog.lessons.find(l=>l.id===current.lesson),passed=unit&&store.coursePassed(unit.id),following=unit&&passed?catalog.lessons[catalog.lessons.indexOf(unit)+1]:unit;
+    const remaining=unit&&!passed?unit.characters.length-store.covered(unit.id).length:0;
+    screen(`<section class="finish"><div class="symbol" aria-hidden="true">🌟</div><h1>汉字小冒险，完成啦！</h1><p>${unit&&!passed?`本课还需完成 ${remaining} 个字的找字或拼词，全部完成后解锁下一课。`:'小蜗牛收到了你的新发现，下一课已解锁！'}</p><div class="completion-book" aria-label="本轮认识的汉字">${current.targets.map(c=>`<span>${c.char}</span>`).join('')}</div><p class="feedback">${esc(note)}</p>${reward.rest?'<div class="rest-panel"><h2>休息一会儿吧</h2><p>离开屏幕，喝口水、看看远处。花园会等你回来。</p></div>':''}${unit&&!following?'<div class="level-done"><h2>这一层的小路走到尽头啦！</h2><p>可以回去浇水复习，也可以请家长选择下一层。</p></div>':''}<div class="finish-actions"><a class="reward-link" href="../../rewards.html">🌱 布置花园</a><button class="primary" id="next-round">下一关</button><button id="rest">休息一下</button><button id="go-home">回到识字花园</button></div></section>`);
     root.querySelector('#go-home').onclick=home;root.querySelector('#next-round').onclick=()=>{
-      if(unit){const nextUnit=following||catalog.lessons.find(l=>l.level===unit.level);prefs.lesson=nextUnit.id;store.save();start(nextUnit.id,current.mode);}
-      else{const previous=new Set(current.targets.map(c=>c.id));const pool=catalog.characters.filter(c=>c.level===prefs.level&&!previous.has(c.id));start(null,current.mode,pool);}
+      if(unit){if(!following){home();announce('501 课都通过啦！可以重练或浇水复习。');return;}const nextUnit=following;prefs.lesson=nextUnit.id;prefs.level=nextUnit.level;store.save();start(nextUnit.id,!passed&&current.mode==='trace'?'listen':current.mode);}
+      else{const previous=new Set(current.targets.map(c=>c.id));const candidates=store.review(prefs.level);const pool=candidates.filter(c=>!previous.has(c.id));start(null,current.mode,pool.length?pool:candidates);}
     };
     root.querySelector('#rest').onclick=()=>{round=null;screen('<section class="finish"><div class="symbol">🌳</div><h1>休息时间</h1><p>去走一走、看看远处，下次再一起探索。</p><button id="go-home">回到识字花园</button></section>');root.querySelector('#go-home').onclick=home;};
     announce('汉字小冒险完成啦');
