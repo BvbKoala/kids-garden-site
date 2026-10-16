@@ -567,7 +567,7 @@
           if(pen.stage!==3)return reject('还没长大，先照顾它吧。');const food=action==='collect-meat'?a.meat:a.extra;
           if(!food)return reject('这位伙伴没有蛋奶产出。');
           if(action==='collect-extra'&&pen.productionFeeds!==undefined&&pen.productionFeeds<3)return reject('蛋奶还没准备好，再喂养 '+(3-pen.productionFeeds)+' 次吧。');
-          const quantity=action==='collect-meat'?2:1;if(!Number.isSafeInteger(h.ingredients[food]+quantity))return reject('食材仓库装满啦。');
+          const quantity=action==='collect-meat'?meatYield:1;if(!Number.isSafeInteger(h.ingredients[food]+quantity))return reject('食材仓库装满啦。');
           h.ingredients[food]+=quantity;if(action==='collect-meat')h.pens[index]=null;else {pen.productionFeeds=0;pen.productionAt=Date.now();}
           record(s,'ranch-collect',0,food);message=`获得${ingredients.find(i=>i.id===food).name} × ${quantity}，可以去厨房啦！${action==='collect-meat'?'小窝空出来，可以养下一只。':'伙伴保持成年，再喂养 3 次就能收下一份蛋奶。'}`;
         }else{
@@ -584,6 +584,7 @@
     return save(s)?{ok:true,message}:{ok:false,error};
   }
 
+  const meatYield=5;
   function purchase(kind,id,quantity=1){if(kind==='farm')return farmAction('buy',null,id,quantity);if(kind==='ranch')return homeAction('buy',null,id,undefined,undefined,quantity);return {ok:false,error:'找不到这个商店。'};}
-  globalThis.GardenRewards={syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
+  globalThis.GardenRewards={meatYield,syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
 })();
