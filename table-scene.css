@@ -3,8 +3,7 @@
 .family-dishes{position:absolute;inset:34% 7% 13% 9%;display:block;gap:0;perspective:1000px}
 .family-dishes .table-dish{position:absolute;left:var(--dish-x);top:var(--dish-y);width:clamp(100px,16vw,183px);margin:0;gap:0;transform:translate(-50%,-50%) scale(var(--dish-scale)) rotate(var(--dish-angle));transform-origin:50% 70%;filter:none}
 .family-dishes .table-plate{position:relative;isolation:isolate;width:100%;height:auto;aspect-ratio:1;max-width:none;border:0;border-radius:0;padding:0;background:none;box-shadow:none}
-.family-dishes .table-plate:before{content:'';position:absolute;left:22%;right:17%;bottom:12%;height:12%;border-radius:50%;background:#35200d55;filter:blur(6px);z-index:-1;transform:rotate(-4deg)}
-.family-dishes .table-plate>img{display:block;width:100%;height:100%;object-fit:contain;box-sizing:border-box;border:0;border-radius:0;background:transparent;filter:drop-shadow(2px 4px 1px #34231449) drop-shadow(5px 9px 5px #34231430)}
+.family-dishes .table-plate>img{display:block;width:100%;height:100%;object-fit:contain;box-sizing:border-box;border:0;border-radius:0;background:transparent;filter:drop-shadow(0 2px 2px #34231440)}
 .family-dishes .table-dish strong{margin-top:-9px;max-width:125%;font-size:11px;line-height:1.25;white-space:nowrap;background:#fff4d8e6;padding:3px 7px;border:1px solid #9e77354d;border-radius:4px;box-shadow:0 2px 2px #6f421e20;z-index:6}
 .family-dishes .table-dish small{margin-top:2px;background:#fff4d8cd;padding:1px 5px;font-size:9px;line-height:1.2;z-index:6}
 .family-dishes .dish-steam{top:8%;height:36px;left:33%;right:33%}.family-dishes .dish-steam i{height:30px;width:9px;border-left-width:2px}
@@ -12,7 +11,7 @@
 .dining-room #table-empty{position:absolute;left:10%;right:10%;top:46%;max-width:440px;margin:0 auto;padding:16px;font-size:14px}
 .just-served .table-plate{animation:table-serve .7s ease-out both}@keyframes table-serve{from{opacity:0;transform:translateY(-18px) scale(.92)}to{opacity:1;transform:none}}
 @media(max-width:900px) and (min-width:681px){.family-dishes .table-dish{width:17vw}.family-dishes .table-dish strong{font-size:10px}.family-dishes .table-dish small{font-size:8px}}
-@media(max-width:680px){.dining-room{aspect-ratio:.94;border-radius:17px;border-width:2px;padding:0;min-height:0}.family-dishes{inset:33% 1% 12%}.family-dishes .table-dish{width:clamp(83px,28vw,123px)}.family-dishes .table-dish strong{font-size:9px;padding:2px 4px;margin-top:-6px}.family-dishes .table-dish small{font-size:8px}.family-dishes .table-plate:before{filter:blur(3px)}.family-dishes .dish-steam{height:25px;top:8%}.family-dishes .dish-steam i{height:22px;width:6px}.table-pages{gap:7px;margin-top:13px}.table-pages span{font-size:11px}.table-pages button{padding:6px 9px;font-size:11px}.dining-room #table-empty{top:45%;font-size:12px;padding:11px}}
+@media(max-width:680px){.dining-room{aspect-ratio:.94;border-radius:17px;border-width:2px;padding:0;min-height:0}.family-dishes{inset:33% 1% 12%}.family-dishes .table-dish{width:clamp(83px,28vw,123px)}.family-dishes .table-dish strong{font-size:9px;padding:2px 4px;margin-top:-6px}.family-dishes .table-dish small{font-size:8px}.family-dishes .dish-steam{height:25px;top:8%}.family-dishes .dish-steam i{height:22px;width:6px}.table-pages{gap:7px;margin-top:13px}.table-pages span{font-size:11px}.table-pages button{padding:6px 9px;font-size:11px}.dining-room #table-empty{top:45%;font-size:12px;padding:11px}}
 @media(prefers-reduced-motion:reduce){.just-served .table-plate{animation:none}}
 
 /* Drag only the dish: the rest of the page keeps normal touch scrolling. */
