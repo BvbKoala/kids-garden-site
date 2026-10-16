@@ -1,6 +1,6 @@
 try {
   const keys = {};
-  for (const key of ['abc-garden-v1', 'abc-garden-v2', 'learning-garden-rewards-v1', 'learning-garden-study-v1', 'learning-garden-literacy-v2', 'learning-garden-poetry-v1', 'learning-garden-mistakes-v1']) {
+  for (const key of ['abc-garden-v1', 'abc-garden-v2', 'learning-garden-rewards-v1', 'learning-garden-study-v1', 'learning-garden-literacy-v2', 'learning-garden-poetry-v1', 'learning-garden-mistakes-v1', 'learning-garden-table-layout-v1']) {
     const value = localStorage.getItem(key);
     if (value !== null) keys[key] = value;
   }
