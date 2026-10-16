@@ -1,5 +1,5 @@
 (() => {
- const r=GardenRewards,goal=GardenCookingPlay.goal,voice=GardenKitchenVoice,$=id=>document.getElementById(id);let animal='chicken',feed='feed',filter='全部',query='',dish=null,selected=new Set(),phase=0,token='',side='',cooking={count:0},lastNarration='',justAdded=null;
+ const r=GardenRewards,goal=GardenCookingPlay.goal,voice=GardenKitchenVoice,$=id=>document.getElementById(id);let animal='chicken',feed='feed',filter='全部',query='',dish=null,selected=new Set(),phase=0,token='',side='',cooking={count:0},lastNarration='',justAdded=null,serving=false,servedClose=false;
  const groups=['全部','可以做','未点亮','蔬菜','蛋奶','禽肉','鱼鲜','肉香','甜品'];
  const methods={蒸:'♨️',煮:'🥘',炒:'🍳',烤:'🔥',拌:'🥗',煎:'🍳',炖:'🍲'};
  const ingredientArt=i=>i.source!=='animal'?`<img class="ingredient-photo" src="assets/produce/${i.id}.webp" data-produce="${i.id}" alt="" decoding="async">`:`<span class="ingredient-symbol">${i.symbol}</span>`;
@@ -24,19 +24,19 @@
   if(!list.length){const p=document.createElement('p');p.textContent='这一页还没有菜谱。先去农场收获、牧场领取食材，再回来看看吧！';$('recipe-list').append(p);}
   if(s.error)$('home-message').textContent=s.error;
   if(focus)document.getElementById(focus)?.focus({preventScroll:true});
-  if($('cook-dialog').open&&dish)drawCook();
+  if($('cook-dialog').open&&dish&&!serving)drawCook();
  }
- function openDish(d){voice.stop();lastNarration='';justAdded=null;dish=d;selected=new Set();phase=0;token=crypto.randomUUID();side='';cooking={count:0};$('cook-feedback').textContent='';drawCook();$('cook-dialog').showModal();}
+ function openDish(d){GardenServing.stop();serving=false;voice.stop();lastNarration='';justAdded=null;dish=d;selected=new Set();phase=0;token=crypto.randomUUID();side='';cooking={count:0};$('cook-feedback').textContent='';drawCook();$('cook-dialog').showModal();}
  function narrate(lack){const key=dish.id+':'+phase+':'+[...selected].join(',')+':'+lack.map(i=>i.id).join(',');if(key===lastNarration)return;lastNarration=key;let clips=[];
   if(lack.length)clips=['missing-ingredients',...lack.map(i=>'ingredient-'+i.id)];
   else if(phase===0){const remaining=Object.keys(dish.needs).filter(id=>!selected.has(id));clips=justAdded?['ingredient-'+justAdded,'ingredient-added']:[];clips.push(...(remaining.length?[justAdded?'next-ingredients':'select-ingredients',...remaining.map(id=>'ingredient-'+id)]:['ingredients-ready']));justAdded=null;}
-  else if(phase===1)clips=['method-'+GardenCookingPlay.describe(dish.method).key];else if(phase===3)clips=['served'];
+  else if(phase===1)clips=['method-'+GardenCookingPlay.describe(dish.method).key];
   if(clips.length)voice.play(clips);
  }
  function drawCook(){
   const s=r.kitchenState(),lack=r.missing(s,dish),screen=$('cook-screen');narrate(lack);screen.replaceChildren();
-  const top=document.createElement('div');top.innerHTML=`<p class="eyebrow">小厨师的料理小冒险</p><h2 id="cook-title">${dish.name}</h2>${phase<2?`<img class="cook-dish-photo" src="${dish.image}" alt="${dish.name}的成品效果图" width="1024" height="1024">`:""}<p class="cook-steps">${phase===0?'① 配好食材':phase===1?'② 选对做法':phase===2?'③ '+GardenCookingPlay.describe(dish.method).energy+' · '+goal+' 格':'🏅 做菜完成'}</p>`;screen.append(top);if(dish.id==='dish-51'){const origin=document.createElement('p');origin.className='recipe-origin';origin.innerHTML='需要种植 <strong>草莓和小麦</strong>，小麦磨成 <strong>面粉</strong>，养 <strong>鸡</strong>取鸡蛋，养 <strong>牛</strong>取牛奶。糖、黄油和淡奶油由厨房提供。';screen.append(origin);}
-  if(phase===3){const el=document.createElement('div');el.className='dish-finish';el.innerHTML=`<div class="served-preview"><img src="${dish.image}" alt="刚端出来的${dish.name}">${GardenCookingPlay.steam(dish.method)}</div><h3>🏅 ${dish.name}做好啦！</h3><p>菜已经端到家里的餐桌上啦！这枚菜品勋章也会一直保留。</p>`;screen.append(el);screen.append(button('finish-cook','去看家里的餐桌',()=>{voice.stop();$('cook-dialog').close();$('family-table').scrollIntoView({block:'start'});$('table-title').focus({preventScroll:true});}));return;}
+  $('cook-dialog').classList.toggle('cooking-is-ready',phase===2&&cooking.count>=goal);
+  const top=document.createElement('div');top.innerHTML=`${phase<2?'<p class="eyebrow">小厨师的料理小冒险</p>':''}<h2 id="cook-title">${dish.name}</h2>${phase<2?`<img class="cook-dish-photo" src="${dish.image}" alt="${dish.name}的成品效果图" width="1024" height="1024">`:""}${phase<2?`<p class="cook-steps">${phase===0?'① 配好食材':'② 选对做法'}</p>`:''}`;screen.append(top);if(dish.id==='dish-51'&&phase===0){const origin=document.createElement('p');origin.className='recipe-origin';origin.innerHTML='需要种植 <strong>草莓和小麦</strong>，小麦磨成 <strong>面粉</strong>，养 <strong>鸡</strong>取鸡蛋，养 <strong>牛</strong>取牛奶。糖、黄油和淡奶油由厨房提供。';screen.append(origin);}
   if(lack.length){const p=document.createElement('p');p.textContent='还缺：'+lack.map(i=>i.name+' × '+i.quantity).join('、');screen.append(p);const links=document.createElement('p');links.innerHTML=(lack.some(i=>i.id==='flour')?'<a href="#wheat-mill" id="go-mill">🌾 去小磨坊磨面粉</a>　':'')+'<a href="rewards.html">🌱 去种植收获</a>　<a href="rewards.html#ranch" id="go-ranch">🐮 去养殖领取</a>';screen.append(links);if(links.querySelector('#go-mill'))links.querySelector('#go-mill').onclick=()=>{voice.stop();$('cook-dialog').close();};links.querySelector('#go-ranch').onclick=()=>{$('cook-dialog').close();};return;}
   if(phase===0){
    const p=document.createElement('p');p.textContent='照着菜谱，把这些食材放进料理盆，每种一份。';screen.append(p);
@@ -48,13 +48,23 @@
    screen.append(button('mix-food','🥄 搅一搅，准备好啦',()=>{phase=1;$('cook-feedback').textContent='看看菜谱：这道菜要“'+dish.method+'”。';drawCook();},selected.size!==Object.keys(dish.needs).length));
   }else if(phase===1){const p=document.createElement('p');p.textContent='菜谱小提示：用“'+dish.method+'”的方法，让食材变成这道菜。';screen.append(p);const grid=document.createElement('div');grid.className='method-grid';for(const [name,icon] of Object.entries(methods))grid.append(button('method-'+name,icon+' '+name,()=>{if(name!==dish.method){$('cook-feedback').textContent='换一种做法试试吧！这道菜需要“'+dish.method+'”。';voice.play(['wrong-method','method-'+GardenCookingPlay.describe(dish.method).key]);return;}phase=2;$('cook-feedback').textContent=GardenCookingPlay.describe(dish.method).tip;drawCook();}));screen.append(grid);
   }else{
-   const caption=document.createElement('p');caption.className='ready-caption';caption.id='cooking-ready';caption.hidden=cooking.count<goal;caption.textContent='✨ '+GardenCookingPlay.describe(dish.method).energy+'满啦！'+dish.name+'可以上桌了。';
-   GardenCookingPlay.mount(screen,{dish,state:cooking,ingredients:r.ingredients,ingredientArt,side,onGuide:cue=>voice.play([cue]),onChange:count=>{const serve=$('serve-dish');if(serve)serve.disabled=count<goal;caption.hidden=count<goal;}});screen.append(caption);
-   const p=document.createElement('p');p.textContent='端上桌时使用菜谱里的食材各一份。'+(side?'另外搭配 '+r.crops.find(c=>c.id===side).name+'一份。':'');screen.append(p);
-   screen.append(button('serve-dish','🍽️ 端到家里的餐桌',()=>{if(cooking.count<goal)return;const result=r.homeAction('cook',null,dish.id,token,side);$('cook-feedback').textContent=result.ok?result.message:result.error;if(result.ok){phase=3;$('home-message').textContent=dish.name+'上桌啦！'+(dish.method==='拌'?'清爽可口，':'热气腾腾，')+'家里又多了一道菜。';render();}else drawCook();},cooking.count<goal));
+   const caption=document.createElement('p');caption.className='ready-caption';caption.id='cooking-ready';caption.hidden=cooking.count<goal;caption.textContent='✨ 做好啦！';
+   GardenCookingPlay.mount(screen,{dish,state:cooking,ingredients:r.ingredients,ingredientArt,side,onGuide:cue=>voice.play([cue]),onChange:count=>{const serve=$('serve-dish');if(serve){const newlyReady=serve.disabled&&count>=goal;serve.disabled=count<goal;serve.hidden=count<goal;if(newlyReady)$('cook-feedback').textContent='';}$('cook-dialog').classList.toggle('cooking-is-ready',count>=goal);caption.hidden=count<goal;}});screen.append(caption);
+   const serve=button('serve-dish','🍽️ 端上桌',serveDish,cooking.count<goal);serve.hidden=cooking.count<goal;serve.innerHTML=`<img src="assets/dishes/table/${dish.id}.webp" alt=""><span>🍽️ 端上桌</span>`;screen.append(serve);
   }
  }
- $('close-cook').onclick=()=>{voice.stop();$('cook-dialog').close();};$('cook-dialog').addEventListener('cancel',()=>voice.stop());$('cook-dialog').addEventListener('close',()=>{voice.stop();lastNarration='';GardenCookingPlay.dispose($('cook-screen'));dish=null;});
+ function serveDish(){
+  if(serving||!dish||phase!==2||cooking.count<goal)return;
+  const meal=dish,origin=$('cooking-stage')?.getBoundingClientRect();serving=true;$('serve-dish').disabled=true;
+  const result=r.homeAction('cook',null,meal.id,token,side);$('cook-feedback').textContent=result.ok?result.message:result.error;
+  if(!result.ok){serving=false;drawCook();return;}
+  phase=3;$('home-message').textContent=meal.name+'上桌啦！';render();
+  servedClose=true;$('cook-dialog').close();GardenCookingPlay.dispose($('cook-screen'));
+  $('family-table').scrollIntoView({block:'start',behavior:'instant'});
+  const target=document.querySelector('.table-dish[data-dish="'+meal.id+'"] .table-plate');
+  GardenServing.play(meal,origin,target);voice.play(['served']);serving=false;
+ }
+ $('close-cook').onclick=()=>{voice.stop();$('cook-dialog').close();};$('cook-dialog').addEventListener('cancel',()=>voice.stop());$('cook-dialog').addEventListener('close',()=>{if(!servedClose)voice.stop();servedClose=false;lastNarration='';GardenCookingPlay.dispose($('cook-screen'));dish=null;});
  $('cook-repeat').onclick=()=>voice.repeat();$('cook-sound').onclick=()=>voice.toggle();voice.ui();
  $('recipe-search').oninput=e=>{query=e.target.value.trim();render();};
  render();window.addEventListener('storage',render);window.addEventListener('pageshow',render);
