@@ -2,13 +2,17 @@
 (() => {
  const key='learning-garden-farm-sound-v1';let enabled=true,playing=null,warning=null;
  try{enabled=localStorage.getItem(key)!=='off';}catch{}
- const icons={water:'water',feed:'feed',harvest:'harvest',adopt:'pen',plant:'feed',fertilize:'feed'};
+ const icons={water:'water',feed:'feed',harvest:'harvest',adopt:'pen',plant:'feed',fertilize:'fertilizer'};
  function update(){const button=document.getElementById('ranch-sound');if(button){button.textContent=enabled?'声音：开启':'声音：关闭';button.setAttribute('aria-pressed',String(enabled));}}
  function sound(kind){if(!enabled)return;warning=null;playing?.pause();playing=new Audio('assets/ranch/sounds/'+(kind==='water'?'water':kind==='harvest'?'harvest':'feed')+'.mp3');playing.volume=.55;playing.play().catch(()=>{});}
  const warnings={water:'清水用完啦，去补给兑换站兑换一些水吧。',fertilizer:'肥料用完啦，去补给兑换站兑换一些肥料吧。',seeds:'种子用完啦，去种子铺兑换喜欢的种子吧。',feed:'食物不够啦，去补给兑换站兑换饲料，或者收获一些蔬菜吧。'};
- function warn(kind){const text=warnings[kind];if(!text)return '';if(!enabled||warning===kind)return text;playing?.pause();warning=kind;const clip=new Audio('assets/ranch/sounds/need-'+kind+'.mp3');playing=clip;clip.onended=clip.onerror=()=>{if(playing===clip){playing=null;warning=null;}};clip.play().catch(()=>{if(playing===clip){playing=null;warning=null;}});return text;}
+ function warn(kind){stopAnimal();const text=warnings[kind];if(!text)return '';if(!enabled||warning===kind)return text;playing?.pause();warning=kind;const clip=new Audio('assets/ranch/sounds/need-'+kind+'.mp3');playing=clip;clip.onended=clip.onerror=()=>{if(playing===clip){playing=null;warning=null;}};clip.play().catch(()=>{if(playing===clip){playing=null;warning=null;}});return text;}
  function shortage(error){const kind=/清水用完|清水不够/.test(error)?'water':/肥料用完/.test(error)?'fertilizer':/种子用完/.test(error)?'seeds':/饲料用完|这种作物还没收获/.test(error)?'feed':null;if(kind)warn(kind);}
- function confirmMeat(animal){if(!enabled||!GardenRewards.animals.some(a=>a.id===animal))return ()=>{};playing?.pause();warning=null;const clip=new Audio('assets/ranch/sounds/confirm-meat-'+animal+'.mp3?v=1.11.3');playing=clip;clip.play().catch(()=>{});return ()=>{clip.pause();if(playing===clip)playing=null;};}
+ function confirmMeat(animal){stopAnimal();if(!enabled||!GardenRewards.animals.some(a=>a.id===animal))return ()=>{};playing?.pause();warning=null;const clip=new Audio('assets/ranch/sounds/confirm-meat-'+animal+'.mp3?v=1.11.3');playing=clip;clip.play().catch(()=>{});return ()=>{clip.pause();if(playing===clip)playing=null;};}
+ let animalPlaying=null,lastCall=0;
+ function stopAnimal(){animalPlaying?.pause();animalPlaying=null;}
+ function animalCall(id){if(!enabled||document.hidden||document.querySelector('dialog[open]')||!GardenRewards.animals.some(a=>a.id===id)||Date.now()-lastCall<1800)return;lastCall=Date.now();stopAnimal();const clip=new Audio('assets/ranch/sounds/animal-'+id+'.mp3');clip.volume=.45;animalPlaying=clip;clip.onended=clip.onerror=()=>{if(animalPlaying===clip)animalPlaying=null;};clip.play().catch(()=>{});}
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAnimal();});
  function basket(crop){const valid=GardenRewards.crops.some(c=>c.id===crop);return `<span class="filled-harvest-basket"><img class="basket-back" src="assets/ranch/harvest.webp" alt="">${valid?[0,1,2].map(i=>`<img class="basket-fruit fruit-${i}" src="assets/produce/${crop}.webp" alt="">`).join(''):''}<img class="basket-front" src="assets/ranch/harvest.webp" alt=""></span>`;}
  function attachCursor(surface,resolve){if(!surface)return;const cursor=document.createElement('div');cursor.className='farm-tool-cursor';cursor.setAttribute('aria-hidden','true');cursor.hidden=true;document.body.append(cursor);let active=null,art='';
   const hide=()=>{cursor.hidden=true;active?.classList.remove('farm-cursor-active');active=null;};
@@ -17,11 +21,11 @@
  }
  function show(target,kind,options={}){if(!target)return;target.classList.remove('action-water','action-feed','action-harvest','action-adopt');void target.offsetWidth;target.classList.add('action-'+kind);
   const burst=document.createElement('div');burst.className='farm-action-burst burst-'+kind;burst.setAttribute('aria-hidden','true');
-  if(kind==='harvest'&&options.crop){const load=document.createElement('div');load.className='harvest-load';load.innerHTML=basket(options.crop);burst.append(load);}else{const icon=document.createElement('img');icon.src='assets/ranch/'+(icons[kind]||'harvest')+'.webp';icon.alt='';burst.append(icon);}
+  if(kind==='harvest'&&options.crop){const load=document.createElement('div');load.className='harvest-load';load.innerHTML=basket(options.crop);burst.append(load);}else{const icon=document.createElement('img');icon.src='assets/ranch/'+(options.ranch&&kind==='water'?'drinking-trough':icons[kind]||'harvest')+'.webp';icon.alt='';burst.append(icon);}
   for(let i=0;i<8;i++){const dot=document.createElement('span');dot.style.setProperty('--i',i);burst.append(dot);}target.append(burst);sound(kind);
   setTimeout(()=>{burst.remove();target.classList.remove('action-'+kind);},1100);
  }
- document.getElementById('ranch-sound')?.addEventListener('click',()=>{enabled=!enabled;if(!enabled){playing?.pause();playing=null;warning=null;}try{localStorage.setItem(key,enabled?'on':'off');}catch{}update();});
- window.addEventListener('pagehide',()=>{playing?.pause();playing=null;warning=null;});window.addEventListener('storage',e=>{if(e.key===key){enabled=e.newValue!=='off';if(!enabled){playing?.pause();playing=null;warning=null;}update();}});
- window.GardenFarmFX={show,warn,shortage,basket,attachCursor,confirmMeat};update();
+ document.getElementById('ranch-sound')?.addEventListener('click',()=>{enabled=!enabled;if(!enabled){stopAnimal();playing?.pause();playing=null;warning=null;}try{localStorage.setItem(key,enabled?'on':'off');}catch{}update();});
+ window.addEventListener('pagehide',()=>{stopAnimal();playing?.pause();playing=null;warning=null;});window.addEventListener('storage',e=>{if(e.key===key){enabled=e.newValue!=='off';if(!enabled){stopAnimal();playing?.pause();playing=null;warning=null;}update();}});
+ window.GardenFarmFX={show,warn,shortage,basket,attachCursor,confirmMeat,animalCall};update();
 })();

@@ -256,7 +256,7 @@ function updateSound() {
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
-  if(b.dataset.word){const w=byId.get(b.dataset.word);if(w){if(view!=='review'&&dueReview().length&&!prefs.courseProgress.passed[courses[courseIndex()].id]){requireReview();return;}markSeen(w);speak(w.letter,w.id);}return;}
+  if(b.dataset.word){const w=byId.get(b.dataset.word);if(w){if(view!=='review'&&dueReview().length&&!prefs.courseProgress.passed[courses[courseIndex()].id]){requireReview();return;}markSeen(w);speak(w.id,'meaning-'+w.id);}return;}
   if(b.dataset.letter){selectLetter(b.dataset.letter);return;}
   if(b.dataset.view){view=b.dataset.view;render();return;}
   if(b.dataset.game){startGame(b.dataset.game);return;}
@@ -307,3 +307,5 @@ document.addEventListener('change',e=>{
 modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAudio();});
 save();if(dueReview().length)renderReviewBook();else render();updateSound();
+
+const headerContinue=document.createElement('button');headerContinue.id='header-continue';headerContinue.className='header-continue';headerContinue.textContent='▶ 继续课程';document.querySelector('.header-actions').prepend(headerContinue);headerContinue.onclick=()=>{if(game&&!game.finished){document.querySelector('#app').scrollIntoView({block:'start'});return;}if(requireReview())return;const n=curriculum.current(prefs.courseProgress,courses);prefs.selected=courses[n].letter;wordPage=courses[n].page;save();startGame('listen');};

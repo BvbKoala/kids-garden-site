@@ -6,10 +6,13 @@
   const store=core.open(recordStorage,catalog,GardenContent.literacyGroups),prefs=store.state;
   const opening=store.currentCourse();if(opening){prefs.lesson=opening.id;prefs.level=opening.level;}
   const root=document.querySelector('#learning'),byChar=new Map(catalog.characters.map(c=>[c.char,c]));
+  root.addEventListener('click',e=>{if(e.detail>1){e.preventDefault();e.stopImmediatePropagation();}},true);
   const byId=new Map(catalog.characters.map(c=>[c.id,c]));
   const symbols={'一':'1️⃣','二':'2️⃣','三':'3️⃣','日':'☀️','月':'🌙','山':'⛰️','水':'💧','火':'🔥','木':'🌳','人':'🧒','口':'👄','手':'✋','足':'🦶','目':'👁️','耳':'👂','猫':'🐈','狗':'🐕','鱼':'🐟','鸟':'🐦','马':'🐎','牛':'🐄','花':'🌼','草':'🌱','雨':'🌧️','云':'☁️','果':'🍎','米':'🍚','门':'🚪','家':'🏡','车':'🚗','书':'📚','笔':'✏️'};
   const themes=[['数字小火车','🚂'],['月光小营地','🌙'],['森林寻宝队','🌳'],['小兔来做客','🐰'],['池塘音乐会','🐸'],['彩虹邮递员','🌈']];
   const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let penMode='brush';try{penMode=localStorage.getItem('learning-garden-writing-tool-v1')==='pen'?'pen':'brush';}catch{}
+  const continueButton=document.createElement('button');continueButton.id='header-continue';continueButton.className='header-continue';continueButton.textContent='▶ 继续课程';document.querySelector('.subject-header').append(continueButton);continueButton.onclick=()=>{if(referenceOnlyRoute){location.href='index.html';return;}if(round&&!round.finished){root.scrollIntoView({block:'start'});return;}start(store.currentCourse().id,'listen');};
   let page=0,round=null,writer=null,screenToken=0,lastLesson=null;
   function stop(){audio.stop();screenToken++;if(writer){writer.cancelQuiz();writer.pauseAnimation();writer=null;}}
   function announce(text){document.querySelector('#status').textContent=text;}
@@ -35,7 +38,7 @@
       const seen=l.characters.filter(c=>prefs.seen.includes(byChar.get(c).id)).length,done=store.coursePassed(l.id),unlocked=store.courseAllowed(l.id);
       const [name,symbol]=themes[(l.number-1)%themes.length];
       return `<button class="lesson-tile ${seen===l.characters.length?'visited':''} ${unlocked?'':'course-locked'}" ${unlocked?'':'disabled'} data-lesson="${l.id}"><strong>${symbol} ${name}</strong><small>第 ${l.number} 站${done?' · 已通过':unlocked?' · 可以学习':' · 🔒 尚未解锁'}</small><span class="unit-chars">${l.characters.map(c=>`<span>${c}</span>`).join('')}</span><small>已接触 ${seen} / ${l.characters.length} 字</small></button>`;
-    }).join('')}</div><div class="page-controls"><button id="previous-page" aria-label="上一页冒险" ${page===0?'disabled':''}>←</button><span>第 ${page+1} / ${Math.ceil(lessons.length/8)} 页</span><button id="next-page" aria-label="下一页冒险" ${(page+1)*8>=lessons.length?'disabled':''}>→</button></div><section class="search-box"><label for="character-search">🔎 家长找字 · 全部 3000 字</label><input id="character-search" placeholder="输入汉字或词语，如：月、学校" maxlength="16" autocomplete="off"><p id="search-summary" role="status"></p><div id="search-results" class="search-results"></div></section><details class="settings"><summary>家长 · 分级与声音</summary><p>4–6 岁默认从基础 300 字开始。层级按顺序逐课解锁，完成前一层后才能进入下一层；不要求学前完成 3000 字。</p><label>选择学习层级<select id="level-setting">${catalog.levels.map(l=>`<option value="${l.id}" ${l.id===prefs.level?'selected':''} ${store.courseAllowed(catalog.lessons.find(unit=>unit.level===l.id).id)?'':'disabled'}>${l.name} · 累计 ${l.total} 字</option>`).join('')}</select></label><label>播放声音<input id="sound-setting" type="checkbox" ${prefs.sound?'checked':''}></label><label>听音找字选项<select id="option-setting"><option value="2" ${prefs.options===2?'selected':''}>2 个</option><option value="3" ${prefs.options===3?'selected':''}>3 个</option></select></label><p>“已接触”表示看过或听过。浇水篮优先选到期复习的字；完成轮数不等于掌握程度。每轮最多 5 个目标，不计时、不扣分。描字可用手指或鼠标，也可选择看笔顺，不强求精细书写。</p><a href="../../parent.html">家长小窗</a><a href="../../records.html">下载记录备份</a><a href="legacy.html">以前的图片小屋</a></details>`);
+    }).join('')}</div><div class="page-controls"><button id="previous-page" aria-label="上一页冒险" ${page===0?'disabled':''}>←</button><span>第 ${page+1} / ${Math.ceil(lessons.length/8)} 页</span><button id="next-page" aria-label="下一页冒险" ${(page+1)*8>=lessons.length?'disabled':''}>→</button></div><section class="search-box"><label for="character-search">🔎 家长找字 · 全部 3000 字</label><input id="character-search" placeholder="输入汉字或词语，如：月、学校" maxlength="16" autocomplete="off"><p id="search-summary" role="status"></p><div id="search-results" class="search-results"></div></section><details class="settings"><summary>家长 · 分级与声音</summary><p>4–6 岁默认从基础 300 字开始。层级按顺序逐课解锁，完成前一层后才能进入下一层；不要求学前完成 3000 字。</p><label>选择学习层级<select id="level-setting">${catalog.levels.map(l=>`<option value="${l.id}" ${l.id===prefs.level?'selected':''} ${store.courseAllowed(catalog.lessons.find(unit=>unit.level===l.id).id)?'':'disabled'}>${l.name} · 累计 ${l.total} 字</option>`).join('')}</select></label><label>播放声音<input id="sound-setting" type="checkbox" ${prefs.sound?'checked':''}></label><p>听词找字固定 3 个选项，选错先跳过，稍后换一组再认。</p><p>“已接触”表示看过或听过。浇水篮优先选到期复习的字；完成轮数不等于掌握程度。每轮最多 5 个目标，不计时、不扣分。描字可用手指或鼠标，也可选择看笔顺，不强求精细书写。</p><a href="../../parent.html">家长小窗</a><a href="../../records.html">下载记录备份</a><a href="legacy.html">以前的图片小屋</a></details>`);
     root.querySelectorAll('[data-lesson]').forEach(b=>b.onclick=()=>lesson(b.dataset.lesson));
     root.querySelector('#continue-lesson').onclick=()=>lesson(selected.id);
     root.querySelector('#review').onclick=()=>start(null,'listen',store.review(prefs.level));
@@ -44,7 +47,6 @@
     root.querySelector('#previous-page').onclick=()=>{page--;home();};root.querySelector('#next-page').onclick=()=>{page++;home();};
     root.querySelector('#level-setting').onchange=e=>{const first=catalog.lessons.find(unit=>unit.level===Number(e.target.value));if(!first||!store.courseAllowed(first.id)){e.target.value=prefs.level;return locked();}prefs.level=Number(e.target.value);prefs.lesson=catalog.lessons.find(l=>l.level===prefs.level).id;store.save();page=0;home();root.querySelector('.settings').open=true;};
     root.querySelector('#sound-setting').onchange=e=>{prefs.sound=e.target.checked;audio.stop();store.save();recordNotice();};
-    root.querySelector('#option-setting').onchange=e=>{prefs.options=Number(e.target.value);store.save();recordNotice();};
     root.querySelector('#character-search').oninput=e=>search(e.target.value);
   }
   function search(value){
@@ -92,8 +94,8 @@
   function distractors(entry){
     const nearby=catalog.characters.filter(c=>c.level===entry.level&&c.id!==entry.id);
     const same=nearby.filter(c=>c.radical===entry.radical);
-    const pool=core.shuffle([...same,...core.shuffle(nearby).slice(0,30)]);
-    const unique=[...new Set(pool.map(c=>c.char))];return core.shuffle([entry.char,...unique.slice(0,prefs.options-1)]);
+    const old=round?.mode==='listen'?round.optionHistory?.[entry.id]||[]:[];const fresh=nearby.filter(c=>!old.includes(c.char));const pool=core.shuffle([...same.filter(c=>!old.includes(c.char)),...core.shuffle(fresh).slice(0,30)]);
+    const unique=[...new Set(pool.map(c=>c.char))];return core.shuffle([entry.char,...unique.slice(0,2)]);
   }
   function draw(){
     const current=round;if(!current)return;if(current.index===current.targets.length){if(current.pending.size){current.targets=core.shuffle(current.allTargets.filter(e=>current.pending.has(e.id)));current.pending.clear();current.index=0;}else return finish();}
@@ -103,28 +105,28 @@
     const base=`<div class="game-head"><button id="leave">← 返回</button><div class="round-progress" aria-label="第 ${current.index+1} 题，共 ${current.targets.length} 题">${current.targets.map((_,i)=>`<span class="${i<current.index?'done':''}"></span>`).join('')}</div><span id="round-count">${current.index+1} / ${current.targets.length}</span></div>${notice()}<section class="literacy-game" data-entry="${entry.id}" data-word-index="${current.wordIndex}"><h1 tabindex="-1">${captions[current.mode]}</h1><p class="round-caption">${current.mode==='trace'?`${entry.char} · ${entry.pinyin} · ${entry.strokes} 笔`:'听词语，找到它的朋友。'}</p>`;
     let body='';
     if(current.mode==='listen'){
-      current.options=distractors(entry);
+      current.options=distractors(entry);current.optionHistory??={};current.optionHistory[entry.id]=[...current.options];
       body=`<div class="word-clue" aria-label="词语里有一个字等待你来填">${[...word.text].map((c,i)=>i===word.targetIndex?'<span class="blank-letter">?</span>':`<span>${c}</span>`).join('')}</div><div class="question-control"><button id="repeat">🔊 再听一次</button></div>${error()}<div class="options">${current.options.map((c,i)=>`<button class="option" data-choice="${i}">${c}</button>`).join('')}</div>`;
     } else if(current.mode==='build'){
       const letters=[...word.text],extras=distractors(entry).filter(c=>!letters.includes(c));
       current.tiles=core.shuffle([...letters,...extras.slice(0,2)]).map((char,i)=>({char,id:i,used:false}));
       body=`<p class="story-note">🐸 小青蛙想收到这个词语。<br>点字块，或把它拖进第一个空位。</p><div class="word-slots" aria-label="词语拼搭空位">${letters.map((_,i)=>`<div class="word-slot" data-slot="${i}" aria-label="第 ${i+1} 个字的空位"></div>`).join('')}</div><div class="question-control"><button id="repeat">🔊 听词语</button><button id="hint" class="hint-button">💡 看一下词语</button></div><div id="word-reveal" class="word-reveal" aria-live="polite"></div>${error()}<div class="letter-tiles">${current.tiles.map(t=>`<button class="letter-tile" draggable="true" data-tile="${t.id}" aria-label="字块 ${t.char}">${t.char}</button>`).join('')}</div>`;
     } else {
-      body=`<p class="story-note">🖌️ 用手指或鼠标，跟着亮起来的小路画。<br>也可以看看笔顺，轻松认识它。</p><div id="stroke-board" class="stroke-board" aria-label="${entry.char}的互动描字画板"></div><div class="stroke-actions"><button id="repeat">🔊 听组词</button><button id="animate" disabled>👀 看笔顺</button><button id="restart-trace" disabled>🖌️ 重新描</button><button id="observe" disabled>我看懂了，继续</button></div>${error()}`;
+      body=`<p class="story-note">🖌️ 用手指或鼠标，跟着亮起来的小路画。<br>也可以看看笔顺，轻松认识它。</p><div class="pen-tools" role="group" aria-label="选择写字工具"><button id="brush-tool" aria-pressed="${penMode==='brush'}">🖌️ 毛笔</button><button id="pen-tool" aria-pressed="${penMode==='pen'}">🖋️ 钢笔</button></div><div id="stroke-board" data-pen="${penMode}" class="stroke-board" aria-label="${entry.char}的互动描字画板"></div><div class="stroke-actions"><button id="repeat">🔊 听组词</button><button id="animate" disabled>👀 看笔顺</button><button id="restart-trace" disabled>🖌️ 重新描</button><button id="observe" disabled>我看懂了，继续</button></div>${error()}`;
     }
     screen(base+body+'<p class="feedback" role="status"></p></section>');
     root.querySelector('#leave').onclick=()=>{round=null;current.lesson.startsWith('L')?lesson(current.lesson):home();};
     root.querySelector('#repeat').onclick=()=>playWord(word);
-    root.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>choose(Number(b.dataset.choice)));
+    root.querySelectorAll('[data-choice]').forEach(b=>b.onclick=e=>{if(e.detail<2)choose(Number(b.dataset.choice));});
     if(current.mode==='build'){
       root.querySelector('#hint').onclick=()=>{root.querySelector('#word-reveal').textContent=word.text+' · '+word.pinyin;playWord(word);};
       root.querySelectorAll('[data-tile]').forEach(b=>{
-        b.onclick=()=>place(Number(b.dataset.tile));
+        b.onclick=e=>{if(e.detail<2)place(Number(b.dataset.tile));};
         b.ondragstart=e=>{if(current.locked){e.preventDefault();return;}e.dataTransfer.setData('text/plain',b.dataset.tile);};
       });
       root.querySelectorAll('[data-slot]').forEach(el=>{el.ondragover=e=>e.preventDefault();el.ondrop=e=>{e.preventDefault();if(Number(el.dataset.slot)!==current.placed)return feedback('先放进前面的空位，慢慢来。');const value=e.dataTransfer.getData('text/plain');if(/^\d+$/.test(value))place(Number(value));};});
     }
-    if(current.mode==='trace')loadWriter(entry,current);playPrompt(current,word,current.index===0);
+    if(current.mode==='trace'){for(const [id,mode] of [['brush-tool','brush'],['pen-tool','pen']])root.querySelector('#'+id).onclick=()=>{penMode=mode;try{localStorage.setItem('learning-garden-writing-tool-v1',mode);}catch{}draw();};loadWriter(entry,current);}playPrompt(current,word,current.index===0);
     root.querySelector('h1').focus({preventScroll:true});
   }
   function choose(index){
@@ -147,15 +149,15 @@
       const response=await fetch(`strokes/${entry.id}.json`);if(!response.ok)throw Error();const data=await response.json();
       if(round!==current||screenToken!==token)return;
       const board=root.querySelector('#stroke-board'),size=board.clientWidth;
-      writer=HanziWriter.create(board,entry.char,{width:size,height:size,padding:18,showCharacter:false,showOutline:true,drawingColor:'rgba(22,117,104,0)',strokeColor:'#167568',radicalColor:'#bb6f31',highlightColor:'#e0aa33',outlineColor:'#dae3cf',strokeAnimationSpeed:0.7,delayBetweenStrokes:250,charDataLoader:(_,complete)=>complete(data),onLoadCharDataError:()=>feedback('小画板暂时没准备好，请返回后再试。')});
+      writer=HanziWriter.create(board,entry.char,{width:size,height:size,padding:18,showCharacter:false,showOutline:true,drawingColor:penMode==='pen'?'#167568':'rgba(22,117,104,0)',drawingWidth:penMode==='pen'?5:4,strokeColor:'#167568',radicalColor:'#bb6f31',highlightColor:'#e0aa33',outlineColor:'#dae3cf',strokeAnimationSpeed:0.7,delayBetweenStrokes:250,charDataLoader:(_,complete)=>complete(data),onLoadCharDataError:()=>feedback('小画板暂时没准备好，请返回后再试。')});
       const thisWriter=writer;
       await thisWriter.getCharacterData();if(round!==current||screenToken!==token||writer!==thisWriter)return;
       const dot=document.createElement('span');dot.className='stroke-start';dot.setAttribute('aria-hidden','true');board.append(dot);
       const fill=GardenStrokeFill.create(board,board.querySelector('svg'));
       let strokeIndex=0,tracing=false,dragging=false,progress=0;
       function clearFill(){dragging=false;progress=0;fill.clear();}
-      function reveal(e){if(!dragging)return;const projected=GardenStrokeFill.projection(fill.localPoint(e),data.medians[strokeIndex]);if(projected.distance>85||projected.portion>progress+.45)return;progress=Math.max(progress,projected.portion);fill.paint(progress);}
-      board.addEventListener('pointerdown',e=>{if(!tracing||current.locked||e.button!==0)return;const point=fill.localPoint(e),median=data.medians[strokeIndex];if(Math.hypot(point[0]-median[0][0],point[1]-median[0][1])>100)return;clearFill();fill.prepare(data.strokes[strokeIndex],median);dragging=true;});
+      function reveal(e){if(penMode!=='brush'||!dragging)return;const projected=GardenStrokeFill.projection(fill.localPoint(e),data.medians[strokeIndex]);if(projected.distance>85||projected.portion>progress+.45)return;progress=Math.max(progress,projected.portion);fill.paint(progress);}
+      board.addEventListener('pointerdown',e=>{if(penMode!=='brush'||!tracing||current.locked||e.button!==0)return;const point=fill.localPoint(e),median=data.medians[strokeIndex];if(Math.hypot(point[0]-median[0][0],point[1]-median[0][1])>100)return;clearFill();fill.prepare(data.strokes[strokeIndex],median);dragging=true;});
       board.addEventListener('pointermove',reveal);board.addEventListener('pointerup',()=>{dragging=false;setTimeout(clearFill,0);});board.addEventListener('pointercancel',clearFill);board.addEventListener('pointerleave',clearFill);
       function hintStroke(index){
         if(round!==current||writer!==thisWriter||current.locked)return;
@@ -199,7 +201,8 @@
   function recordMistake(entry){
     const current=round;current.failed.add(entry.id);current.pending.add(entry.id);current.attempts++;
     book.miss(entry.id,{entryId:entry.id});
-    if(current.attempts>=2){current.locked=true;const word=entry.words[current.wordIndex];feedback('先听一听：'+word.text+'。稍后再来认这个字。');audio.play('audio/'+word.audio+'.mp3',prefs.sound).then(()=>{if(round===current){current.index++;draw();}});return true;}return false;
+    if(current.mode==='listen'){audio.stop();current.locked=true;current.index++;draw();announce('先跳过，稍后换一组再认这个字。');return true;}
+    if(current.attempts>=2){current.locked=true;root.querySelectorAll('[data-choice],[data-tile]').forEach(b=>b.disabled=true);const word=entry.words[current.wordIndex];feedback('先听一听：'+word.text+'。稍后再来认这个字。');audio.play('audio/'+word.audio+'.mp3',prefs.sound).then(()=>{if(round===current){current.index++;draw();}});return true;}return false;
   }
   function startNotebook(){
     const items=book.items().slice(0,5),entries=items.map(x=>byId.get(x.payload.entryId)).filter(Boolean);

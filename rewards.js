@@ -573,10 +573,10 @@
         }else{
           const producing=pen.stage===3&&a.extra&&pen.productionFeeds!==undefined&&pen.productionFeeds<3;
           if(pen.stage===3&&!producing)return reject('已经准备好啦，领取食材吧。');
-          if(!producing&&pen.stage===1){if(action!=='water')return reject('这一阶段需要添水。');if(!f.water)return reject('清水不够，到补给兑换站兑换吧。');f.water--;}
+          if(!producing&&pen.stage===1&&a.id!=='fish'){if(action!=='water')return reject('这一阶段需要添水。');if(!f.water)return reject('清水不够，到补给兑换站兑换吧。');f.water--;}
           else{if(action!=='feed')return reject('这一阶段需要喂食。');if(id==='feed'){if(!h.feed)return reject('饲料用完啦，可以兑换或用收获的作物喂食。');h.feed--;}
             else{if(!['corn','carrot','pumpkin'].includes(id))return reject('请选择饲料、玉米、胡萝卜或南瓜。');if(!f.harvest[id])return reject('这种作物还没收获呢。');f.harvest[id]--;}}
-          if(producing){pen.productionAt=Date.now();pen.productionFeeds++;message=pen.productionFeeds===3?'新一份蛋奶准备好啦！点围栏里的产出收获。':`喂养进度 ${pen.productionFeeds}/3，再喂 ${3-pen.productionFeeds} 次就有新产出。`;}else{pen.growthAt=Date.now();pen.stage++;message=pen.stage===3?`${a.name}长大啦！可以领取食材。`:pen.stage===1?'吃饱啦！下一步添水。':'喝饱啦！再喂一次就长大。';}
+          if(producing){pen.productionAt=Date.now();pen.productionFeeds++;message=pen.productionFeeds===3?'新一份蛋奶准备好啦！点围栏里的产出收获。':`喂养进度 ${pen.productionFeeds}/3，再喂 ${3-pen.productionFeeds} 次就有新产出。`;}else{pen.growthAt=Date.now();pen.stage++;message=pen.stage===3?`${a.name}长大啦！可以领取食材。`:a.id==='fish'?'小鱼吃饱啦！再喂鱼食可以继续长大。':pen.stage===1?'吃饱啦！下一步添水。':'喝饱啦！再喂一次就长大。';}
         }
       }
     }

@@ -18,6 +18,7 @@ const legacy=subject==='knowledge'?[]:courses.filter(course=>prefs.completed[`${
 const order=GardenCourseOrder.open(courses.map(course=>course.id),previousOrders[subject],legacy);
 prefs.courseOrders={...previousOrders,[subject]:order.state};
 function courseFor(topic,id){return id?courses.find(course=>course.id===id&&course.topic===topic):courses.find(course=>course.topic===topic&&!order.done(course.id))||courses.find(course=>course.topic===topic);}
+const headerContinue=document.createElement('button');headerContinue.id='header-continue';headerContinue.className='header-continue';headerContinue.textContent='▶ 继续课程';document.querySelector('.subject-header').append(headerContinue);headerContinue.onclick=()=>{if(round&&!round.finished){root.scrollIntoView({block:'start'});return;}const c=courses.find(c=>c.id===order.current());start(c.topic,[],c.id);};
 function blocked(){status('先完成前一课，就能解锁这一课。');}
 function showCourses(topic){
  if(subject!=='knowledge')return start(topic);
