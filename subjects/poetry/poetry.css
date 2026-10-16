@@ -3,3 +3,6 @@
 .teaching-answer{outline:6px solid #6b9647!important;position:relative}.teaching-answer:after{content:"✓";position:absolute;top:10px;right:10px;background:#477f49;color:white;border-radius:50%;padding:6px 12px;font-size:28px}.picture-option.teaching-answer:disabled{opacity:1}
 
 .line-explanation{display:flex;align-items:start;gap:10px;margin:0 0 18px;padding:10px;background:#edf3e5;border-radius:12px}.line-explanation p{margin:0;font-size:15px;line-height:1.7}.line-explanation button{flex-shrink:0}.poem-words{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.poem-words small{display:block;font-size:12px;font-weight:400}
+
+/* The actual audio clip selects the line; emphasis never changes lesson progress. */
+[data-reading-part][hidden]{display:none}.poem-line-group{border-radius:15px;scroll-margin-top:110px}.poem-line-group.speaking{box-shadow:0 0 0 3px #deb552;background:#fff0b5}.poem-line.speaking,.line-explanation.speaking{background:#fff0b5;color:#4f421f}.poem-line-group.speaking .verse{font-weight:750}.poem-paper h1.speaking{background:#fff0b5;border-radius:10px}.poem-words button.speaking{background:#ffe397;color:#4f421f;box-shadow:0 0 0 3px #deb552}.poem-char.word-speaking{background:#f5ce62;color:#493615;border-radius:6px}.poem-line-group .line-explanation{margin-bottom:18px}
