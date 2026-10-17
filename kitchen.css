@@ -7,3 +7,14 @@ body{background:#faf5e9}.kitchen-page{max-width:1180px;color:#354b38}.kitchen-he
 
 .recipe-search-label{display:flex;align-items:center;gap:12px;margin:18px 0;font-size:14px;font-weight:750;flex-wrap:wrap}.recipe-search-label input{font:inherit;min-height:44px;border:2px solid #ccd7b9;border-radius:12px;padding:9px 12px;max-width:100%;box-sizing:border-box;background:#fffef5;color:#3c5c38}
 .wheat-mill{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;background:#fff4d5;border:2px solid #d4ba74;border-radius:24px;padding:24px;margin:24px 0;scroll-margin-top:100px}.mill-play{text-align:center}.mill-ingredients{display:flex;align-items:center;justify-content:center;gap:15px}.mill-ingredients img{width:95px;height:80px;object-fit:contain}.mill-ingredients span{font-size:26px;color:#8a6427}#mill-turn{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px auto;padding:10px 20px}.mill-wheel{display:inline-block;font-size:42px;transform:rotate(var(--mill-angle,0deg));transition:transform .3s}#mill-progress{display:block;width:min(100%,260px);height:18px;margin:12px auto;accent-color:#638e42}#mill-message{min-height:3em;font-size:14px}#mill-repeat{margin:8px}.mill-play button{min-height:44px}@media(max-width:600px){.wheat-mill{grid-template-columns:1fr;gap:10px;padding:18px}}@media(prefers-reduced-motion:reduce){.mill-wheel{transition:none}}
+
+/* Ready recipes remain distinct from permanent achievement medals. */
+.recipe-list{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.recipe{min-width:0;padding:12px;border-radius:17px}
+.recipe h3{font-size:17px;overflow-wrap:anywhere}
+.recipe p{font-size:12px;overflow-wrap:anywhere}
+.recipe button{font-size:13px;padding:8px}
+.recipe.cookable{border-color:#69a45c;background:#edf8e7}
+.recipe.cookable .recipe-stock{color:#326b2b;font-weight:700}
+@media(max-width:1000px){.recipe-list{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:680px){.recipe-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.recipe h3{font-size:16px}}

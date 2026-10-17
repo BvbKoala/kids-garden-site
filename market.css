@@ -8,3 +8,9 @@
 
 /* Shop followed by warehouse, with wider displays on desktop. */
 .farm-bottom{grid-template-columns:minmax(0,1fr)}.farm-shop .supply-list,.harvest-house .harvest-list{grid-template-columns:repeat(6,minmax(0,1fr))}@media(max-width:1000px){.farm-shop .supply-list,.harvest-house .harvest-list{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:680px){.farm-shop .supply-list,.harvest-house .harvest-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Stock tiers share the same thresholds in both warehouses. */
+:is(.harvest-item,.food-item).stock-speaker[data-stock-tier="empty"] .basket-quantity{background:#e8e7e3;border-color:#cbc9c2;color:#77756f}
+:is(.harvest-item,.food-item).stock-speaker[data-stock-tier="low"] .basket-quantity{background:#fff0db;border-color:#db963d;color:#834800}
+:is(.harvest-item,.food-item).stock-speaker[data-stock-tier="medium"] .basket-quantity{background:#e0f3dc;border-color:#72a766;color:#285b24}
+:is(.harvest-item,.food-item).stock-speaker[data-stock-tier="high"] .basket-quantity{background:#e0efff;border-color:#709ed0;color:#245583}

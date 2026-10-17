@@ -15,6 +15,8 @@ window.lucide?.createIcons();
 
 function updateSeedCount() {
   const rewardSummary = GardenRewards.snapshot();
+  const days=document.querySelector('#study-days'),summary=document.querySelector('#study-days-summary');
+  if(rewardSummary.error){summary.textContent='学习天数暂时无法读取，请家长检查记录。';}else{const count=Object.values(rewardSummary.days).filter(day=>day.rounds>0).length;if(days)days.textContent=String(count);else{summary.replaceChildren('您已经快乐学习 ');const number=document.createElement('strong');number.id='study-days';number.textContent=String(count);summary.append(number,' 天啦');}}
   document.querySelector('#seed-count').textContent = rewardSummary.error ? '请家长检查记录' : `${rewardSummary.balance} 颗星星`;
 }
 updateSeedCount();

@@ -452,8 +452,8 @@
   const dailySubjects=['english','literacy','math','knowledge','poetry'];
   function dailyCheckIn(){const s=read(),day=dayKey(),d=s?.days[day];const subjects=d?dailySubjects.filter(id=>d.subjects.includes(id)):[];return {day,subjects,complete:subjects.length===dailySubjects.length,claimed:!!d?.checkInBonusClaimed,bonus:5,error};}
   function addCheckInBonus(s,day,daily){daily.checkInBonusClaimed=true;daily.points+=5;s.earned+=5;record(s,'daily-checkin',5,day);}
-  function claimDailyCheckIn(){const s=read();if(!s)return {amount:0,error};const day=dayKey(),daily=s.days[day];if(!daily||!dailySubjects.every(id=>daily.subjects.includes(id)))return {amount:0,error:'今天的五科还没全部完成哦。'};if(daily.checkInBonusClaimed)return {amount:0,duplicate:true};if(!Number.isSafeInteger(s.earned+5)||!Number.isSafeInteger(daily.points+5))return {amount:0,error:'星星记录暂时无法保存。'};addCheckInBonus(s,day,daily);return save(s)?{amount:5,balance:s.earned-s.spent}:{amount:0,error};}
-  function award(subject,topic,eventId) {
+  function claimDailyCheckIn(){if(sleepError())return {ok:false,amount:0,error:sleepError()};const s=read();if(!s)return {amount:0,error};const day=dayKey(),daily=s.days[day];if(!daily||!dailySubjects.every(id=>daily.subjects.includes(id)))return {amount:0,error:'今天的五科还没全部完成哦。'};if(daily.checkInBonusClaimed)return {amount:0,duplicate:true};if(!Number.isSafeInteger(s.earned+5)||!Number.isSafeInteger(daily.points+5))return {amount:0,error:'星星记录暂时无法保存。'};addCheckInBonus(s,day,daily);return save(s)?{amount:5,balance:s.earned-s.spent}:{amount:0,error};}
+  function award(subject,topic,eventId) {if(sleepError())return {ok:false,amount:0,error:sleepError()};
     const s=read();if(!s)return {amount:0,error};
     if(typeof eventId!=='string'||!eventId||s.events.some(e=>e.id===eventId)||s.settled?.includes(eventId))return {amount:0,duplicate:true};
     const day=dayKey(), daily=s.days[day]||{points:0,rounds:0,subjects:[]};
@@ -469,7 +469,7 @@
     if(!save(s))return {amount:0,error};
     return {amount,bonusAmount,totalAmount:amount+bonusAmount,balance:s.earned-s.spent,rest:daily.rounds>=3,capped:false};
   }
-  function buy(id) {
+  function buy(id) {if(sleepError())return {ok:false,amount:0,error:sleepError()};
     const item=catalog.find(i=>i.id===id),s=read();
     if(!item||!s)return {ok:false,error:error||'找不到这件装饰'};
     if(s.owned.includes(id))return {ok:false,error:'已经拥有啦'};
@@ -477,10 +477,10 @@
     s.spent+=item.cost;s.owned.push(id);s.placed.push(id);record(s,'decorate',-item.cost,id);
     return {ok:save(s),error};
   }
-  function toggle(id) {const s=read();if(!s||!s.owned.includes(id))return false;s.placed=s.placed.includes(id)?s.placed.filter(x=>x!==id):[...s.placed,id];return save(s);}
+  function toggle(id) {if(sleepError())return false;const s=read();if(!s||!s.owned.includes(id))return false;s.placed=s.placed.includes(id)?s.placed.filter(x=>x!==id):[...s.placed,id];return save(s);}
   function farmState(){const s=snapshot();return {...s,farm:s.farm||freshFarm()};}
   // Farm purchases and inventory share the existing ledger: a single atomic write.
-  function farmAction(action,index,cropId,purchaseCount=1){
+  function farmAction(action,index,cropId,purchaseCount=1){if(sleepError())return {ok:false,amount:0,error:sleepError()};
     const s=read();if(!s)return {ok:false,error};advanceGrowth(s,true);
     const f=s.farm||freshFarm();s.farm=f;
     const reject=message=>({ok:false,error:message});
@@ -525,7 +525,7 @@
   function kitchenState(){const s=farmState();return {...s,homestead:s.homestead||freshHome(s.farm)};}
   function available(s,id){return crops.some(c=>c.id===id)?s.farm.harvest[id]:s.homestead.ingredients[id];}
   function missing(s,recipe){return Object.entries(recipe.needs).filter(([id,n])=>available(s,id)<n).map(([id,n])=>({...ingredients.find(i=>i.id===id),quantity:n-available(s,id)}));}
-  function homeAction(action,index,id,token,side,purchaseCount=1){
+  function homeAction(action,index,id,token,side,purchaseCount=1){if(sleepError())return {ok:false,amount:0,error:sleepError()};
     const s=read();if(!s)return {ok:false,error};advanceGrowth(s,true);
     s.farm=s.farm||freshFarm();s.homestead=s.homestead||freshHome(s.farm);
     const f=s.farm,h=s.homestead,reject=error=>({ok:false,error});let message='';
@@ -584,7 +584,17 @@
     return save(s)?{ok:true,message}:{ok:false,error};
   }
 
+  function exchangeCoins(coins,token){
+    if(!globalThis.GardenParentMode?.authorized())return {ok:false,error:'请先进入家长模式。'};
+    if(!Number.isSafeInteger(coins)||coins<1||coins>10||typeof token!=='string'||!token||token.length>100)return {ok:false,error:'每次请输入 1–10 的整数金币数量。'};
+    const s=read();if(!s)return {ok:false,error};const id='parent-coins:'+token;
+    if(s.settled?.includes(id)||s.events.some(e=>e.id===id))return {ok:true,duplicate:true,amount:0,balance:s.earned-s.spent};
+    const amount=coins*5;if(!Number.isSafeInteger(s.earned+amount))return {ok:false,error:'星星数量过大，未兑换。'};
+    s.earned+=amount;s.settled=s.settled||s.events.filter(e=>typeof e.id==='string').map(e=>e.id);s.settled.push(id);record(s,'parent-coins',amount,String(coins));s.events.at(-1).id=id;
+    return save(s)?{ok:true,amount,balance:s.earned-s.spent}:{ok:false,error};
+  }
+  const sleepError=()=>globalThis.GardenParentMode?.sleeping()?'小朋友，现在太晚啦，应该洗漱睡觉啦。明天见吧。':'';
   const meatYield=5;
   function purchase(kind,id,quantity=1){if(kind==='farm')return farmAction('buy',null,id,quantity);if(kind==='ranch')return homeAction('buy',null,id,undefined,undefined,quantity);return {ok:false,error:'找不到这个商店。'};}
-  globalThis.GardenRewards={meatYield,syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
+  globalThis.GardenRewards={exchangeCoins,meatYield,syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
 })();
