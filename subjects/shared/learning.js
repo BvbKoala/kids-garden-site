@@ -1,6 +1,6 @@
 (() => {
 const subject=document.body.dataset.subject;
-const names={literacy:'识字小花园',math:'数学游乐场',knowledge:'世界探索屋'};
+const names={literacy:'识字课堂',math:'数学课堂',knowledge:'常识课堂'};
 const root=document.querySelector('#learning');
 const KEY='learning-garden-study-v1';
 const book=GardenMistakeBook.open(localStorage,subject);let afterNotebook=null;
@@ -50,7 +50,7 @@ async function speak(ids){
 }
 function status(text){document.querySelector('#status').textContent=text;}
 function home(){
- stopSound();round=null;document.title=`${names[subject]} · 儿童学习花园`;
+ stopSound();round=null;document.title=`${names[subject]} · 儿童学习乐园`;
 
  root.innerHTML=`<div class="intro"><p class="muted">小小发现，大大开心</p><h1>${names[subject]}</h1><p class="course-overview">已通过 ${Object.keys(order.state.passed).length} / ${courses.length} 课 · 前一课通关后解锁下一课</p><button class="primary" id="continue-course">${order.frontier()===courses.length?'重练已通过课程':'继续第 '+(order.frontier()+1)+' 课'}</button><p>${subject==='literacy'?'先点图片听一听，再找汉字朋友。':subject==='math'?'数一数，想一想。一次只玩五小题。':'听一个生活小问题，找个好办法。'}</p></div>${storageError?`<p class="storage-notice">${storageError}</p>`:''}<div class="topic-list">${topics.map(t=>`<button class="topic ${order.allowed(courses.find(course=>course.topic===t.id).id)?'':'course-locked'}" data-topic="${t.id}" ${order.allowed(courses.find(course=>course.topic===t.id).id)?'':'disabled'}><span class="symbol" aria-hidden="true">${t.symbol}</span>${t.name}<small>${!order.allowed(courses.find(course=>course.topic===t.id).id)?'🔒 尚未解锁 · ':''}${prefs.completed[subject+':'+t.id]?'已完成 '+prefs.completed[subject+':'+t.id]+' 轮':'去发现'}${subject==='knowledge'?' · '+t.questions.length+' 道题':''}${subject==='math'&&['add','subtract','mixed'].includes(t.id)?' · '+prefs.range+' 以内':''}</small></button>`).join('')}</div><details class="settings"><summary>家长 · 学习设置</summary><p>建议陪孩子一起探索，每次 3–5 分钟，从容易的内容开始。每完成 3 轮会提示休息。</p><label>播放声音<input id="sound-setting" type="checkbox" ${prefs.sound?'checked':''}></label><label>每题选项<select id="option-setting"><option value="2" ${prefs.options===2?'selected':''}>2 个</option><option value="3" ${prefs.options===3?'selected':''}>3 个</option></select></label>${subject==='math'?`<label>加减法范围<select id="range-setting">${[10,20,100,1000].map(n=>`<option value="${n}" ${prefs.range===n?'selected':''}>${n} 以内</option>`).join('')}</select></label><label>进位、退位练习<input id="carry-setting" type="checkbox" ${prefs.carry?'checked':''}></label><p>10 以内配实物图；更大数显示百、十、个位分解。1000 以内是可选拓展，由家长按孩子情况选择。进位、退位从 20 以内开始。</p>`:''}<p>不计时、不扣分；每轮目标不重复，答对后自动前进。学习记录只留在本浏览器。</p><a href="../../records.html">查看与备份记录</a></details>`;
  root.querySelector('.intro').insertAdjacentHTML('beforeend',`<button id="mistake-book">📖 我的错题本 · ${book.items().length}</button><p class="course-overview">继续学习前先练错题，复习按 1、3、7、14、30 天巩固。</p>`);root.querySelector('#mistake-book').onclick=()=>{afterNotebook=null;showNotebook();};
@@ -122,7 +122,7 @@ function finish(){
  const topic=subject==='math'&&['add','subtract','mixed'].includes(current.topic)?`${current.topic}-${prefs.range}-${prefs.carry?'carry':'base'}`:current.topic;
  const reward=GardenRewards.award(subject,current.notebook?'mistake-review':topic,current.id);
  root.innerHTML=`<section class="finish"><div class="symbol" aria-hidden="true">🌟</div><h1>小冒险，完成啦！</h1><p>你认真完成了这一关，又有了新发现！</p><p class="feedback">${reward.error||storageError||(reward.amount?`⭐ 获得 ${reward.amount} 颗星星${reward.bonusAmount?' · 五科打卡完成，额外 +5 颗！':''}`:'这一关的星星已经记好啦。')}</p>${reward.rest?'<div class="rest-panel"><h2>让小眼睛休息一下</h2><p>离开屏幕，喝口水，看看远处。花园会等你回来。</p></div>':''}<div class="finish-actions"><a class="reward-link" href="../../rewards.html">🌱 布置花园</a><button class="primary" id="next-round">下一关</button><button id="rest">休息一下</button></div></section>`;
- root.querySelector('#rest').onclick=()=>{stopSound();round=null;root.innerHTML='<section class="finish"><div class="symbol">🌳</div><h1>休息时间</h1><p>去走一走、看看远处吧。下次再一起探索。</p><a class="reward-link" href="../../index.html">回到学习花园</a></section>';};
+ root.querySelector('#rest').onclick=()=>{stopSound();round=null;root.innerHTML='<section class="finish"><div class="symbol">🌳</div><h1>休息时间</h1><p>去走一走、看看远处吧。下次再一起探索。</p><a class="reward-link" href="../../index.html">回到学习乐园</a></section>';};
  root.querySelector('#next-round').onclick=()=>{if(current.notebook){const resume=afterNotebook;afterNotebook=null;if(resume)resume();else home();return;}const following=courses[courses.findIndex(course=>course.id===current.course)+1];if(following)start(following.topic,[],following.id);else{home();status('所有课程都通过啦！可以选择已通过的课程重练。');}};status('小冒险完成啦');
  if(reward.amount===1)speak(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']);
 }
