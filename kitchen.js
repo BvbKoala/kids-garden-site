@@ -1,6 +1,6 @@
 (() => {
  const r=GardenRewards,goal=GardenCookingPlay.goal,voice=GardenKitchenVoice,$=id=>document.getElementById(id);let animal='chicken',feed='feed',filter='全部',query='',dish=null,selected=new Set(),phase=0,token='',side='',cooking={count:0},lastNarration='',justAdded=null,serving=false,servedClose=false;
- const groups=['全部','可以做','未点亮','蔬菜','蛋奶','禽肉','鱼鲜','肉香','甜品'];
+ const groups=['全部','可以做','未点亮','蔬菜','蛋奶','禽肉','鱼鲜','肉香','面食','甜品','往日菜谱'];
  const methods={蒸:'♨️',煮:'🥘',炒:'🍳',烤:'🔥',拌:'🥗',煎:'🍳',炖:'🍲'};
  const ingredientArt=i=>i.source!=='animal'?`<img class="ingredient-photo" src="assets/produce/${i.id}.webp" data-produce="${i.id}" alt="" decoding="async">`:`<span class="ingredient-symbol">${i.symbol}</span>`;
  function button(id,label,fn,disabled=false){const b=document.createElement('button');b.id=id;b.textContent=label;b.disabled=disabled;b.onclick=e=>{if(e.detail<2)fn();};return b;}
@@ -8,15 +8,15 @@
  function render(){
   const focus=document.activeElement?.id,s=r.kitchenState(),h=s.homestead,f=s.farm;
   $('home-balance').textContent=s.error||`⭐ ${s.balance} 颗星星`;
-  const medals=Object.values(h.cooked).filter(n=>n>0).length;
-  $('recipe-count-label').textContent=r.recipes.length+' LITTLE DISHES';
-  $('medal-count').textContent=`🏅 ${medals} / ${r.recipes.length} 枚勋章`;$('dish-progress').textContent=`点亮 ${medals} / ${r.recipes.length} 道菜`;
+  const medals=r.activeRecipes.filter(d=>h.cooked[d.id]>0).length,oldMedals=r.recipes.filter(d=>d.retired&&h.cooked[d.id]>0).length;
+  $('recipe-count-label').textContent=r.activeRecipes.length+' LITTLE DISHES';
+  $('medal-count').textContent=`🏅 ${medals} / ${r.activeRecipes.length} 枚勋章`;$('dish-progress').textContent=`点亮 ${medals} / ${r.activeRecipes.length} 道菜${oldMedals?' · 往日勋章 '+oldMedals+' 枚':''}`;
   const served=Object.keys(h.cooked).filter(id=>h.cooked[id]>0).map(id=>r.recipes.find(d=>d.id===id)).filter(Boolean);$('table-count').textContent=`餐桌 ${Math.min(15,served.length)} 道 · 架子 ${Math.max(0,served.length-15)} 道 · 共做了 ${Object.values(h.cooked).reduce((a,b)=>a+b,0)} 份`;
   GardenTableScene.render(served,h.cooked,{id:phase===3?dish?.id:null,token:phase===3?token:null});
   const stockOf=i=>i.source==='crop'?f.harvest[i.id]:h.ingredients[i.id];
   $('food-stock').replaceChildren();for(const i of [...r.ingredients].sort((a,b)=>Number(stockOf(b)>0)-Number(stockOf(a)>0))){const n=i.source==='crop'?f.harvest[i.id]:h.ingredients[i.id],el=document.createElement('div');el.className='food-item'+(n?' in-stock':'');el.innerHTML=`<span class="basket-quantity" aria-label="可用 ${n} 份">× ${n}</span><span class="produce-basket" aria-hidden="true"><img class="basket-body" src="assets/market/produce-basket.webp" alt="">${ingredientArt(i)}</span><strong>${i.name}</strong><small>× ${n}</small>`;GardenCommerceVoice.bindStock(el,i.id,n,i.name);$('food-stock').append(el);}
   $('recipe-filters').replaceChildren();for(const name of groups){const b=button('filter-'+name,name,()=>{filter=name;render();});b.setAttribute('aria-pressed',filter===name);$('recipe-filters').append(b);}
-  $('recipe-list').replaceChildren();const list=r.recipes.filter(d=>filter==='全部'||(filter==='可以做'&&!r.missing(s,d).length)||(filter==='未点亮'&&!h.cooked[d.id])||d.group===filter||(filter==='甜品'&&['dish-14','dish-16','dish-19','dish-20','dish-51'].includes(d.id))).filter(d=>!query||d.name.includes(query)||Object.keys(d.needs).some(id=>r.ingredients.find(i=>i.id===id).name.includes(query)));
+  $('recipe-list').replaceChildren();const list=r.recipes.filter(d=>filter==='往日菜谱'?d.retired:!d.retired).filter(d=>filter==='往日菜谱'||filter==='全部'||(filter==='可以做'&&!r.missing(s,d).length)||(filter==='未点亮'&&!h.cooked[d.id])||d.group===filter||(filter==='甜品'&&['dish-14','dish-16','dish-19','dish-20','dish-51'].includes(d.id))).filter(d=>!query||d.name.includes(query)||Object.keys(d.needs).some(id=>r.ingredients.find(i=>i.id===id).name.includes(query)));
   for(const d of list){const done=h.cooked[d.id]||0,lack=r.missing(s,d),el=document.createElement('article');el.className='recipe'+(done?' unlocked':'')+(!lack.length?' cookable':'');
    el.innerHTML=`<div class="dish-photo"><img src="${d.image}" alt="${d.name}的成品效果图" width="1024" height="1024" loading="lazy" decoding="async">${done?'<span class="photo-medal" aria-label="勋章已点亮">🏅</span>':''}</div><span class="recipe-tag">${d.group} · ${d.method}</span><h3>${d.name}</h3><p>${Object.keys(d.needs).map(id=>{const i=r.ingredients.find(i=>i.id===id);return '<span class="recipe-ingredient">'+ingredientArt(i)+' '+i.name+'</span>';}).join(' + ')}</p><small>${done?'勋章已点亮 · 做过 '+done+' 次':'勋章待点亮'}</small><p class="recipe-stock">${lack.length?'还缺：'+lack.map(i=>i.name+' × '+i.quantity).join('、'):'食材齐啦，可以开工！'}</p>`;
    if(d.id==='dish-51'){const origin=document.createElement('p');origin.className='recipe-origin';origin.textContent='农场准备：种草莓和小麦，小麦磨成面粉，养鸡取蛋，养牛取奶。';el.append(origin);}

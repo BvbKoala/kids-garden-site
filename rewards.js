@@ -365,6 +365,223 @@
     ["焦香羊奶蛋挞", "甜品", "烤", "egg sheepMilk", "蛋挞皮、糖"]
   ].map(([name,group,method,items,pantry],i)=>({id:'dish-'+String(i+1).padStart(2,'0'),name,group,method,pantry,needs:Object.fromEntries(items.split(' ').map(id=>[id,1])),sides:group==='甜品'?[]:([1,4,5,6,7,9,11,12,15,17,18].includes(i+1)||i+1>=21)?extraCrops.map(c=>c.id):[],image:'assets/dishes/dish-'+String(i+1).padStart(2,'0')+'.jpg',symbol:({蔬菜:'🥗',蛋奶:'🍮',禽肉:'🍗',鱼鲜:'🐟',肉香:'🍲',甜品:'🧁'})[group]}));
   for(const dish of recipes){if(dish.pantry.includes('面粉')){dish.needs.flour=1;dish.pantry=dish.pantry.replace(/面粉[、，]?/g,'');}}
+  // BEGIN COMMON RECIPES
+  recipes.push(...[
+  [
+    "清炒土豆丝",
+    "蔬菜",
+    "炒",
+    "potato",
+    "食用油、盐"
+  ],
+  [
+    "地三鲜",
+    "蔬菜",
+    "炒",
+    "potato eggplant pepper",
+    "食用油、酱油"
+  ],
+  [
+    "蒜蓉西兰花",
+    "蔬菜",
+    "炒",
+    "broccoli garlic",
+    "食用油、盐"
+  ],
+  [
+    "蒜蓉生菜",
+    "蔬菜",
+    "炒",
+    "lettuce garlic",
+    "食用油、盐"
+  ],
+  [
+    "醋溜白菜",
+    "蔬菜",
+    "炒",
+    "cabbage",
+    "食用油、醋、盐"
+  ],
+  [
+    "清炒花菜",
+    "蔬菜",
+    "炒",
+    "cauliflower",
+    "食用油、盐"
+  ],
+  [
+    "黄瓜炒蛋",
+    "蛋奶",
+    "炒",
+    "cucumber egg",
+    "食用油、盐"
+  ],
+  [
+    "韭菜炒蛋",
+    "蛋奶",
+    "炒",
+    "chives egg",
+    "食用油、盐"
+  ],
+  [
+    "丝瓜炒蛋",
+    "蛋奶",
+    "炒",
+    "luffa egg",
+    "食用油、盐"
+  ],
+  [
+    "香菇蒸蛋",
+    "蛋奶",
+    "蒸",
+    "shiitake egg",
+    "清水、盐"
+  ],
+  [
+    "土豆炖牛肉",
+    "肉香",
+    "炖",
+    "potato beef carrot",
+    "酱油、清水"
+  ],
+  [
+    "香菇炖鸡",
+    "禽肉",
+    "炖",
+    "shiitake chickenMeat ginger",
+    "酱油、清水"
+  ],
+  [
+    "洋葱炒牛肉",
+    "肉香",
+    "炒",
+    "onion beef",
+    "食用油、酱油"
+  ],
+  [
+    "红烧肉",
+    "肉香",
+    "炖",
+    "pork ginger",
+    "酱油、糖、清水"
+  ],
+  [
+    "萝卜炖羊肉",
+    "肉香",
+    "炖",
+    "radish lamb ginger",
+    "清水、盐"
+  ],
+  [
+    "红烧鱼",
+    "鱼鲜",
+    "炖",
+    "fishMeat scallion ginger",
+    "酱油、清水"
+  ],
+  [
+    "冬瓜肉丸汤",
+    "肉香",
+    "煮",
+    "winter-melon pork",
+    "清水、盐"
+  ],
+  [
+    "番茄蛋花汤",
+    "蛋奶",
+    "煮",
+    "tomato egg",
+    "清水、盐"
+  ],
+  [
+    "菠菜蛋花汤",
+    "蛋奶",
+    "煮",
+    "spinach egg",
+    "清水、盐"
+  ],
+  [
+    "葱油饼",
+    "面食",
+    "煎",
+    "flour scallion",
+    "食用油、盐"
+  ],
+  [
+    "蔬菜鸡蛋饼",
+    "面食",
+    "煎",
+    "flour carrot zucchini egg",
+    "食用油、盐"
+  ],
+  [
+    "韭菜鸡蛋饺子",
+    "面食",
+    "煮",
+    "flour chives egg",
+    "清水、盐"
+  ],
+  [
+    "鲜肉包子",
+    "面食",
+    "蒸",
+    "flour pork scallion",
+    "酵母、清水、盐"
+  ],
+  [
+    "小馒头",
+    "面食",
+    "蒸",
+    "flour",
+    "酵母、清水"
+  ],
+  [
+    "原味蛋糕",
+    "甜品",
+    "烤",
+    "flour egg milk",
+    "糖、黄油"
+  ],
+  [
+    "草莓松饼",
+    "甜品",
+    "煎",
+    "flour strawberry egg milk",
+    "糖、黄油"
+  ],
+  [
+    "牛奶小饼干",
+    "甜品",
+    "烤",
+    "flour milk egg",
+    "糖、黄油"
+  ],
+  [
+    "烤红薯",
+    "甜品",
+    "烤",
+    "sweet-potato",
+    ""
+  ],
+  [
+    "南瓜布丁",
+    "甜品",
+    "蒸",
+    "pumpkin egg milk",
+    "糖"
+  ],
+  [
+    "蒸牛奶蛋羹",
+    "甜品",
+    "蒸",
+    "egg milk",
+    "糖"
+  ]
+].map(([name,group,method,items,pantry],i)=>({id:'dish-'+String(i+82).padStart(2,'0'),name,group,method,pantry,needs:Object.fromEntries(items.split(' ').map(id=>[id,1])),sides:[],image:'assets/dishes/dish-'+String(i+82).padStart(2,'0')+'.jpg',symbol:({蔬菜:'🥗',蛋奶:'🍮',禽肉:'🍗',鱼鲜:'🐟',肉香:'🍲',面食:'🥟',甜品:'🧁'})[group]})));
+  const retiredRecipeIds=new Set(["dish-08", "dish-10", "dish-25", "dish-27", "dish-29", "dish-32", "dish-35", "dish-43", "dish-45", "dish-47", "dish-50", "dish-79"]);
+  for(const d of recipes)d.retired=retiredRecipeIds.has(d.id);
+  const activeRecipes=recipes.filter(d=>!d.retired);
+  // END COMMON RECIPES
   const freshHome=f=>({version:1,millingVersion:1,animals:Object.fromEntries(animals.map(a=>[a.id,a.id==='chicken'?1:0])),feed:6,pens:Array(6).fill(null),ingredients:Object.fromEntries(ingredients.filter(i=>i.source!=='crop').map(i=>[i.id,0])),cooked:{},cropTotal:{...f.harvest},tokens:[]});
   const validClock=p=>['growthAt','productionAt'].every(k=>p[k]===undefined||(Number.isSafeInteger(p[k])&&p[k]>=0));
   const validPen=p=>p===null||(p&&validClock(p)&&animals.some(a=>a.id===p.animal)&&count(p.stage)&&p.stage<=3&&(p.productionFeeds===undefined||(p.stage===3&&count(p.productionFeeds)&&p.productionFeeds<=3)));
@@ -596,5 +813,5 @@
   const sleepError=()=>globalThis.GardenParentMode?.sleeping()?'小朋友，现在太晚啦，应该洗漱睡觉啦。明天见吧。':'';
   const meatYield=5;
   function purchase(kind,id,quantity=1){if(kind==='farm')return farmAction('buy',null,id,quantity);if(kind==='ranch')return homeAction('buy',null,id,undefined,undefined,quantity);return {ok:false,error:'找不到这个商店。'};}
-  globalThis.GardenRewards={exchangeCoins,meatYield,syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
+  globalThis.GardenRewards={exchangeCoins,meatYield,syncGrowth,growthInfo,GROWTH_MS,purchase,snapshot,award,dailyCheckIn,claimDailyCheckIn,buy,toggle,catalog,dayKey,crops,supplies,farmState,farmAction,animals,feedSupply,ingredients,recipes,activeRecipes,kitchenState,missing,homeAction,cropGroups,extraCrops};
 })();
