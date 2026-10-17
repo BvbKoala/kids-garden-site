@@ -1,0 +1,1 @@
+.stock-speaker{cursor:pointer}.stock-speaker:focus-visible{outline:3px solid #287985;outline-offset:3px}.stock-speaker:active .produce-basket{transform:translateY(-3px)}.stock-speaker strong::after{content:' 🔊';font-size:.72em;opacity:.6}#purchase-dialog #purchase-repeat{font-size:13px;min-height:36px;padding:5px 12px}

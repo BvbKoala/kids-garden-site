@@ -4,10 +4,9 @@
  function shuffle(items,random=Math.random){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  function createRound(poem,random=Math.random){let phase='meaning',part=0,queue=[0,1],index=0,attempts=0,failed=new Set(),hadMistake=false,clean=false,done=false;const evidence={meaning:new Set(),lines:new Set()};
   function current(){return done?null:{phase,part,target:queue[index],attempts,clean};}
-  function next(){index++;attempts=0;if(index<queue.length)return;if(failed.size){queue=phase==='line'&&clean?shuffle(poem.parts[part],random):shuffle([...failed],random);failed.clear();index=0;return;}
-   if(phase==='meaning'){phase='line';queue=shuffle(poem.parts[0],random);index=0;clean=false;return;}
-   if(!clean){clean=true;queue=shuffle(poem.parts[part],random);index=0;return;}
-   part++;if(part<poem.parts.length){clean=false;queue=shuffle(poem.parts[part],random);index=0;}else done=true;
+  function next(){index++;attempts=0;if(index<queue.length)return;if(failed.size){queue=shuffle([...failed],random);failed.clear();index=0;return;}
+   if(phase==='meaning'){phase='line';queue=shuffle(poem.parts[0],random);index=0;clean=true;return;}
+   part++;if(part<poem.parts.length){clean=true;queue=shuffle(poem.parts[part],random);index=0;}else done=true;
   }
   function answer(correct){if(done)return {ignored:true};const q=current();if(!correct){hadMistake=true;failed.add(q.target);attempts++;if(attempts>=2){next();return {correct:false,teach:true,advanced:true};}return {correct:false,teach:false,advanced:false};}
    if(attempts)failed.add(q.target);else (phase==='meaning'?evidence.meaning:evidence.lines).add(q.target);next();return {correct:true,advanced:true};
@@ -27,7 +26,7 @@
   function miss(id){if(blocked||!valid.has(id))return false;const next=clone(state);next.mistakes[id]=(next.mistakes[id]||0)+1;if(next.reviews[id])GardenWordReview.mistake(next.reviews,id,now());return commit(next);}
   function claim(){let amount=0,bonusAmount=0;if(blocked)return {ok:false,error};for(const pending of [...state.pending]){const reward=awarder('poetry',pending.id,pending.token);if(reward.error)return {ok:false,error:reward.error};if(!reward.amount&&!reward.duplicate)return {ok:false,error:'星星暂时未保存，请重试领取。'};amount+=reward.amount||0;bonusAmount+=reward.bonusAmount||0;const next=clone(state);next.pending=next.pending.filter(x=>x.token!==pending.token);if(!commit(next))return {ok:false,error};}return {ok:true,amount,bonusAmount};}
   function complete(id,round,token,kind='learn'){
-   if(blocked||!valid.has(id)||!round?.proof||typeof token!=='string'||!token||token.length>100)return {ok:false,error:error||'完成全部听图和独立接句练习，才算过关。'};
+   if(blocked||!valid.has(id)||!round?.proof||typeof token!=='string'||!token||token.length>100)return {ok:false,error:error||'完成全部诗意理解和独立接句练习，才算过关。'};
    if(state.tokens.includes(token))return claim();if(!allowed(id,kind))return {ok:false,error:'请先复习错题或完成前一首。'};
    const next=clone(state),time=now();next.passed[id]=true;next.rounds++;next.tokens.push(token);next.tokens=next.tokens.slice(-100);
    if(!next.reviews[id])next.reviews[id]={stage:0,nextDue:time+DAY,lastReviewed:time,lastMistake:round.hadMistake?time:0,masteredAt:0,mistakes:next.mistakes[id]||0};

@@ -1,11 +1,17 @@
 /* Display-only: never changes cooked counts, ingredients, medals or ledger tokens. */
 (()=>{
  const root=document.getElementById('family-dishes'),room=root.closest('.dining-room');
- const pager=document.createElement('nav');pager.className='table-pages';pager.setAttribute('aria-label','查看其他餐桌');room.after(pager);
- const mobile=matchMedia('(max-width:680px)');let page=0,items=[],counts={},lastToken='',cancelDrag=null;
+ const pager=document.createElement('nav');pager.className='table-pages';pager.setAttribute('aria-label','餐桌与架子上的菜品数量');room.after(pager);
+ const mobile=matchMedia('(max-width:680px)');let items=[],counts={},lastToken='',cancelDrag=null;
  const KEY='learning-garden-table-layout-v1',validIds=new Set(GardenRewards.recipes.map(d=>d.id));
  const blank=()=>({version:1,desktop:{},mobile:{}});let layout=blank(),pending={desktop:{},mobile:{}},blocked=false;
  const controls=document.createElement('div');controls.className='table-arrange-tools';controls.innerHTML='<p id="table-arrange-hint">🖐️ 拖动盘子，摆出喜欢的餐桌 · 也可选中盘子后按方向键移动</p><button id="table-reset" type="button">↺ 恢复这桌摆放</button><p id="table-layout-status" role="status" aria-live="polite"></p>';pager.after(controls);
+ const shelf=document.createElement('section');shelf.className='dish-shelf';shelf.id='dish-shelf';shelf.setAttribute('aria-label','菜品架');shelf.innerHTML='<h3>🍽️ 菜品架</h3><p>餐桌摆满 15 道啦，其他美味先放在这里。点一点，听听是什么菜。</p><div class="shelf-dishes"></div>';controls.after(shelf);
+ let voiceTimer=null,hoverPlate=null;
+ function stopDishVoice(){clearTimeout(voiceTimer);if(hoverPlate)GardenCommerceVoice.stop();hoverPlate=null;}
+ function nameOnHover(plate,d){const say=()=>{stopDishVoice();hoverPlate=plate;voiceTimer=setTimeout(()=>{if(hoverPlate===plate&&plate.isConnected&&!document.hidden)GardenCommerceVoice.dish(d.id);},180);};plate.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')say();});plate.addEventListener('focus',say);plate.addEventListener('click',()=>{if(!elDragging(plate))say();});plate.addEventListener('pointerleave',()=>{if(hoverPlate===plate)stopDishVoice();});plate.addEventListener('blur',()=>{if(hoverPlate===plate)stopDishVoice();});}
+ const elDragging=plate=>plate.closest('.is-dragging');
+ window.addEventListener('pagehide',stopDishVoice);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopDishVoice();});
  const message=text=>document.getElementById('table-layout-status').textContent=text;
  function readLayout(){const raw=localStorage.getItem(KEY);if(!raw)return blank();const data=JSON.parse(raw);if(data.version!==1||!['desktop','mobile'].every(mode=>data[mode]&&typeof data[mode]==='object'&&!Array.isArray(data[mode])&&Object.entries(data[mode]).every(([id,pos])=>validIds.has(id)&&pos&&['x','y'].every(k=>Number.isFinite(pos[k])&&pos[k]>=0&&pos[k]<=100))))throw Error('invalid layout');return data;}
  try{layout=readLayout();}catch{blocked=true;message('摆盘记录暂时无法读取。可以移动盘子，原记录会保留。');}
@@ -30,17 +36,17 @@
   });
   plate.addEventListener('keydown',e=>{const arrows={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]},direction=arrows[e.key];if(!direction)return;e.preventDefault();cancelDrag?.();el.classList.remove('just-served');const step=e.shiftKey?5:2;pos=bounded(el,{x:pos.x+direction[0]*step,y:pos.y+direction[1]*step},base);remember(d.id,pos);});
  }
- document.getElementById('table-reset').onclick=()=>{cancelDrag?.();for(const el of root.children){delete layout[mode()][el.dataset.dish];pending[mode()][el.dataset.dish]=null;}const saved=persist();draw();if(saved)message('这桌已经恢复整齐摆放，其他餐桌保持原样。');};
+ document.getElementById('table-reset').onclick=()=>{cancelDrag?.();for(const el of root.children){delete layout[mode()][el.dataset.dish];pending[mode()][el.dataset.dish]=null;}const saved=persist();draw();if(saved)message('餐桌已经恢复整齐摆放，架子上的菜保持原样。');};
  let resizeFrame=0;window.addEventListener('resize',()=>{cancelDrag?.();cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>draw());});window.addEventListener('keydown',e=>{if(e.key==='Escape')cancelDrag?.();});window.addEventListener('pagehide',()=>cancelDrag?.());document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelDrag?.();});
  window.addEventListener('storage',e=>{if(e.key!==KEY)return;cancelDrag?.();try{layout=readLayout();for(const m of ['desktop','mobile'])for(const [id,pos] of Object.entries(pending[m])){if(pos===null)delete layout[m][id];else layout[m][id]=pos;}blocked=false;draw();}catch{blocked=true;message('摆盘记录已变更，暂时无法读取；原记录会保留。');updateReset();}});
  const slots6=[[22,23,.82,-3],[51,19,.78,2],[80,25,.84,-2],[19,73,1.04,2],[50,69,1,-2],[81,75,1.06,3]];
  const slots4=[[29,18,.79,-3],[73,20,.8,2],[27,78,1.03,2],[74,76,1.01,-2]];
  function draw(highlight){
-  cancelDrag?.();
-  const size=mobile.matches?4:6,pages=Math.max(1,Math.ceil(items.length/size));page=Math.min(page,pages-1);
-  const visible=items.slice(page*size,(page+1)*size);root.replaceChildren();pager.replaceChildren();document.getElementById('table-empty').hidden=items.length>0;
-  room.classList.toggle('table-has-dishes',items.length>0);root.dataset.table=String(page+1);
-  let slots=mobile.matches?slots4:slots6;
+  cancelDrag?.();stopDishVoice();
+  const visible=items.slice(0,15),overflow=items.slice(15);root.replaceChildren();pager.replaceChildren();document.getElementById('table-empty').hidden=items.length>0;
+  room.classList.toggle('table-has-dishes',items.length>0);root.dataset.table='1';
+  let slots=visible.length<=6?(mobile.matches&&visible.length<=4?slots4:slots6):Array.from({length:15},(_,i)=>{const cols=mobile.matches?3:5,rows=Math.ceil(visible.length/cols),row=Math.floor(i/cols),col=i%cols;return [10+col*80/(cols-1),12+row*72/Math.max(1,rows-1),(mobile.matches?.62:.76)+row*(mobile.matches?.03:.04),(i%3-1)*2];});
+  room.classList.toggle('table-crowded',visible.length>6);
   if(visible.length===1)slots=[[50,49,1.18,-2]];
   else if(visible.length===2)slots=[[29,47,1,-3],[72,50,1.06,3]];
   else if(visible.length===3)slots=[[26,22,.83,-3],[74,24,.85,2],[50,76,1.05,-2]];
@@ -49,15 +55,14 @@
    el.style.cssText=`--dish-x:${x}%;--dish-y:${y}%;--dish-scale:${scale};--dish-angle:${angle}deg;z-index:${Math.round(y)}`;
    const plate=document.createElement('button');plate.type='button';plate.className='table-plate';
    const img=document.createElement('img');img.src='assets/dishes/table/'+d.id+'.webp';img.alt=d.name;img.draggable=false;img.decoding='async';img.width=512;img.height=512;plate.append(img);plate.insertAdjacentHTML('beforeend',GardenCookingPlay.steam(d.method));
-   const label=document.createElement('strong');label.textContent=d.name;const n=document.createElement('small');n.textContent='做过 '+counts[d.id]+' 次';el.append(plate,label,n);root.append(el);draggable(el,plate,d,{x,y,scale});
+   const label=document.createElement('strong');label.textContent=d.name;const n=document.createElement('small');n.textContent='做过 '+counts[d.id]+' 次';el.append(plate,label,n);root.append(el);draggable(el,plate,d,{x,y,scale});nameOnHover(plate,d);
   });
   pager.hidden=items.length===0;controls.hidden=items.length===0;updateReset();
-  for(const [id,text,delta] of [['table-previous','← 上一桌',-1],['table-next','下一桌 →',1]]){
-   const b=document.createElement('button');b.id=id;b.type='button';b.textContent=text;b.disabled=delta<0?page===0:page===pages-1;
-   b.onclick=()=>{page+=delta;draw();document.getElementById(id)?.focus({preventScroll:true});};pager.append(b);
-   if(delta<0){const label=document.createElement('span');label.id='table-page-count';label.setAttribute('role','status');label.textContent=`第 ${page+1} / ${pages} 桌 · 这桌 ${visible.length} 道`;pager.append(label);}
-  }
+  const count=document.createElement('span');count.id='table-page-count';count.setAttribute('role','status');count.textContent=`餐桌 ${visible.length}/15 道 · 架子 ${overflow.length} 道`;pager.append(count);
+  shelf.hidden=overflow.length===0;const rack=shelf.querySelector('.shelf-dishes');rack.replaceChildren();
+  for(const d of overflow){const el=document.createElement('article');el.className='shelf-dish'+(d.id===highlight?' just-served':'');el.dataset.dish=d.id;const plate=document.createElement('button');plate.type='button';plate.className='shelf-plate';plate.setAttribute('aria-label','听听'+d.name);const img=document.createElement('img');img.src='assets/dishes/table/'+d.id+'.webp';img.alt=d.name;img.loading='lazy';const label=document.createElement('strong');label.textContent=d.name;const n=document.createElement('small');n.textContent='做过 '+counts[d.id]+' 次';plate.append(img,label,n);el.append(plate);rack.append(el);nameOnHover(plate,d);}
  }
- function render(served,cooked,latest={}){items=served;counts=cooked;let highlight=null;if(latest.token&&latest.token!==lastToken){lastToken=latest.token;const index=items.findIndex(d=>d.id===latest.id);if(index>=0){page=Math.floor(index/(mobile.matches?4:6));highlight=latest.id;}}draw(highlight);}
- mobile.addEventListener('change',()=>{page=0;draw();});globalThis.GardenTableScene={render};
+
+ function render(served,cooked,latest={}){items=served;counts=cooked;let highlight=null;if(latest.token&&latest.token!==lastToken){lastToken=latest.token;const index=items.findIndex(d=>d.id===latest.id);if(index>=0){highlight=latest.id;}}draw(highlight);}
+ mobile.addEventListener('change',()=>draw());globalThis.GardenTableScene={render};
 })();

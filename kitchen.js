@@ -11,9 +11,9 @@
   const medals=Object.values(h.cooked).filter(n=>n>0).length;
   $('recipe-count-label').textContent=r.recipes.length+' LITTLE DISHES';
   $('medal-count').textContent=`🏅 ${medals} / ${r.recipes.length} 枚勋章`;$('dish-progress').textContent=`点亮 ${medals} / ${r.recipes.length} 道菜`;
-  const served=r.recipes.filter(d=>(h.cooked[d.id]||0)>0);$('table-count').textContent=`已上桌 ${served.length} 道菜 · 共做了 ${Object.values(h.cooked).reduce((a,b)=>a+b,0)} 份`;
+  const served=Object.keys(h.cooked).filter(id=>h.cooked[id]>0).map(id=>r.recipes.find(d=>d.id===id)).filter(Boolean);$('table-count').textContent=`餐桌 ${Math.min(15,served.length)} 道 · 架子 ${Math.max(0,served.length-15)} 道 · 共做了 ${Object.values(h.cooked).reduce((a,b)=>a+b,0)} 份`;
   GardenTableScene.render(served,h.cooked,{id:phase===3?dish?.id:null,token:phase===3?token:null});
-  $('food-stock').replaceChildren();for(const i of r.ingredients){const n=i.source==='crop'?f.harvest[i.id]:h.ingredients[i.id],el=document.createElement('div');el.className='food-item'+(n?' in-stock':'');el.innerHTML=`<span class="basket-quantity" aria-label="可用 ${n} 份">× ${n}</span><span class="produce-basket" aria-hidden="true"><img class="basket-body" src="assets/market/produce-basket.webp" alt="">${ingredientArt(i)}</span><strong>${i.name}</strong><small>× ${n}</small>`;$('food-stock').append(el);}
+  $('food-stock').replaceChildren();for(const i of r.ingredients){const n=i.source==='crop'?f.harvest[i.id]:h.ingredients[i.id],el=document.createElement('div');el.className='food-item'+(n?' in-stock':'');el.innerHTML=`<span class="basket-quantity" aria-label="可用 ${n} 份">× ${n}</span><span class="produce-basket" aria-hidden="true"><img class="basket-body" src="assets/market/produce-basket.webp" alt="">${ingredientArt(i)}</span><strong>${i.name}</strong><small>× ${n}</small>`;GardenCommerceVoice.bindStock(el,i.id,n,i.name);$('food-stock').append(el);}
   $('recipe-filters').replaceChildren();for(const name of groups){const b=button('filter-'+name,name,()=>{filter=name;render();});b.setAttribute('aria-pressed',filter===name);$('recipe-filters').append(b);}
   $('recipe-list').replaceChildren();const list=r.recipes.filter(d=>filter==='全部'||(filter==='可以做'&&!r.missing(s,d).length)||(filter==='未点亮'&&!h.cooked[d.id])||d.group===filter||(filter==='甜品'&&['dish-14','dish-16','dish-19','dish-20','dish-51'].includes(d.id))).filter(d=>!query||d.name.includes(query)||Object.keys(d.needs).some(id=>r.ingredients.find(i=>i.id===id).name.includes(query)));
   for(const d of list){const done=h.cooked[d.id]||0,lack=r.missing(s,d),el=document.createElement('article');el.className='recipe'+(done?' unlocked':'');
@@ -61,7 +61,7 @@
   phase=3;$('home-message').textContent=meal.name+'上桌啦！';render();
   servedClose=true;$('cook-dialog').close();GardenCookingPlay.dispose($('cook-screen'));
   $('family-table').scrollIntoView({block:'start',behavior:'instant'});
-  const target=document.querySelector('.table-dish[data-dish="'+meal.id+'"] .table-plate');
+  const target=document.querySelector('[data-dish="'+meal.id+'"] .table-plate,[data-dish="'+meal.id+'"] .shelf-plate');if(target?.classList.contains('shelf-plate')){target.scrollIntoView({block:'center',behavior:'instant'});$('home-message').textContent=meal.name+'做好啦！餐桌满了，先放到菜品架上。';}
   GardenServing.play(meal,origin,target);voice.play(['served']);serving=false;
  }
  $('close-cook').onclick=()=>{voice.stop();$('cook-dialog').close();};$('cook-dialog').addEventListener('cancel',()=>voice.stop());$('cook-dialog').addEventListener('close',()=>{if(!servedClose)voice.stop();servedClose=false;lastNarration='';GardenCookingPlay.dispose($('cook-screen'));dish=null;});

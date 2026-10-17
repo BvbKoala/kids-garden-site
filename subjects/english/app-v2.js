@@ -26,14 +26,17 @@ let reviewClearance=false;
 const dueReview = () => review.due(prefs.wordReview);
 function requireReview() {
   if(!dueReview().length&&(!review.active(prefs.wordReview).length||reviewClearance))return false;
-  renderReviewBook();notice('先完成今天到期的单词复习，再开始课程。');return true;
+  if(game?.reviewMode&&!game.finished){app.scrollIntoView({block:'start'});return true;}
+  startGame('listen',false,true);return true;
 }
 function moveToCourse(index) {
   if(requireReview())return;
   if(!courseAllowed(index)){notice('先通过前一课，就能解锁这里啦。');return;}
   prefs.selected=courses[index].letter;wordPage=courses[index].page;save();view='garden';render();
 }
-function continueCourse() { moveToCourse(curriculum.current(prefs.courseProgress,courses)); }
+function needsReview() { return dueReview().length>0||(!reviewClearance&&review.active(prefs.wordReview).length>0); }
+function continueCourse() { if(needsReview()){startGame('listen',false,true);return;}moveToCourse(curriculum.current(prefs.courseProgress,courses)); }
+function updateContinueButton(){const button=document.querySelector('#header-continue');if(button)button.textContent=game&&!game.finished?(game.reviewMode?'▶ 继续复习':'▶ 继续课程'):dueReview().length?'▶ 开始今日复习':needsReview()?'▶ 先复习错词':'▶ 继续课程';}
 function courseStatus() {
   const index=courseIndex(), passed=Object.keys(prefs.courseProgress.passed).length, due=dueReview().length;
   return `<div class="course-status"><span class="course-pill">第 ${index+1} / ${courses.length} 课 · ${prefs.courseProgress.passed[courses[index].id]?'已通过':'进行中'}</span><p>已通过 ${passed} / ${courses.length} 课 · 每课 5 个单词，通关后解锁下一课。</p>${due?`<p class="course-review-alert">今天还有 ${due} 个词到期，先完成复习，再学课程。</p>`:''}<button class="secondary" id="continue-course">${due?'先完成今日复习':'继续学习进度'}</button></div>`;
@@ -111,12 +114,12 @@ function renderReviewBook() {
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.id==='review-book-nav'));
   const now=Date.now(), due=review.due(prefs.wordReview,now), active=review.active(prefs.wordReview);
   const entries=Object.keys(prefs.wordReview).sort((a,b)=>(prefs.wordReview[a].stage===5)-(prefs.wordReview[b].stage===5)||prefs.wordReview[a].nextDue-prefs.wordReview[b].nextDue);
-  app.innerHTML=`<section class="review-book"><button class="secondary" id="back">← 回到英语花园</button><p class="eyebrow">MY MEMORY GARDEN</p><h1>我的单词错题本</h1><p>今天可复习 <strong>${due.length}</strong> 个 · 待巩固 ${active.length} 个 · 已记牢 ${entries.length-active.length} 个</p><p class="review-help">${due.length?'完成全部到期复习后，才会开放课程学习。':'今天的到期复习已完成，可以继续学习课程。'}错词会和其他朋友打乱练习。每次最多 5 个目标，每题有两次机会；答错后会在本组末尾再认一次，全部认对才获得星星。</p>${!due.length?'<button class="primary review-continue" id="continue-course">继续课程学习 →</button>':''}${active.length?`<button class="primary" id="review-start">${icon('shuffle')}${due.length?'开始今日复习':'提前巩固一下'}</button>`:'<p class="review-empty">'+(entries.length?'这一批朋友都完成间隔复习啦！继续学习，遇到忘记的词也可以再来。':'这里还没有错词，先去和单词朋友玩一玩吧。')+'</p>'}<details class="review-plan"><summary>怎样才算记牢？</summary><p>先补练认对，再按 1、3、7、14、30 天的间隔复习。到期后第一次就答对，才能点亮下一步；提前练习不推进进度，答错会从头巩固。完成 5 次到期复习标记为“已记牢”，以后答错仍会回到错题本。这是练习进度，不代表一定不会遗忘。</p></details><div class="review-grid">${entries.map(id=>{
+  app.innerHTML=`<section class="review-book"><button class="secondary" id="back">← 回到英语花园</button><p class="eyebrow">MY MEMORY GARDEN</p><h1>我的单词错题本</h1><p>今天可复习 <strong>${due.length}</strong> 个 · 待巩固 ${active.length} 个 · 已记牢 ${entries.length-active.length} 个</p>${active.length?`<div class="review-launch"><button class="primary" id="review-start">${icon('headphones')}${due.length?'开始今日复习':reviewClearance?'再巩固一轮':'先复习错词'}</button><span>听单词 → 选图片 → 完成复习</span></div>`:''}<p class="review-help">${due.length?'完成全部到期复习后，才会开放课程学习。':active.length&&!reviewClearance?'今天没有到期的词，先完成一轮错词巩固，再继续课程。':'今天的复习已完成，可以继续学习课程。'}错词会和其他朋友打乱练习。每次最多 5 个目标，每题只选一次；选错就进入下一题，错词在本组末尾换题再认一次，全部认对才获得星星。</p>${!needsReview()?'<button class="primary review-continue" id="continue-course">继续课程学习 →</button>':''}${!active.length?'<p class="review-empty">'+(entries.length?'这一批朋友都完成间隔复习啦！继续学习，遇到忘记的词也可以再来。':'这里还没有错词，先去和单词朋友玩一玩吧。')+'</p>':''}${entries.length?`<p class="review-list-hint">${active.length?'下面的图片用来听单词读音；点上方“复习”按钮进入答题。':'下面的图片可以听单词读音。'}</p>`:''}<details class="review-plan"><summary>怎样才算记牢？</summary><p>先补练认对，再按 1、3、7、14、30 天的间隔复习。到期后第一次就答对，才能点亮下一步；提前练习不推进进度，答错会从头巩固。完成 5 次到期复习标记为“已记牢”，以后答错仍会回到错题本。这是练习进度，不代表一定不会遗忘。</p></details><div class="review-grid">${entries.map(id=>{
     const w=byId.get(id),entry=prefs.wordReview[id],mastered=entry.stage===5;
     const date=new Date(entry.nextDue).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
     return `<article class="review-card ${mastered?'mastered':''}" data-review-word="${id}"><button data-word="${id}" aria-label="听 ${w.word}">${sprite(w)}<strong>${w.word}</strong><span>${w.zh}</span></button><span class="review-status">${mastered?'✓ 已记牢':review.isDue(entry,now)?'今天可以复习':`${date}再见`}</span><div class="memory-steps" aria-label="完成 ${entry.stage} / 5 次到期复习">${review.intervals.map((days,i)=>`<span class="${i<entry.stage?'done':''}">${days}天</span>`).join('')}</div><small>答错 ${entry.mistakes} 次 · 到期复习 ${entry.stage}/5</small></article>`;
   }).join('')}</div></section>`;
-  icons();window.scrollTo(0,0);
+  icons();updateContinueButton();window.scrollTo(0,0);
 }
 function activities() {
   return `<div class="activity-list"><button class="activity" data-game="listen">${icon('headphones')}<span><strong>听音找朋友</strong><small>${prefs.selected} · 第 ${wordPage+1} 组</small></span></button><button class="activity" data-game="match">${icon('puzzle')}<span><strong>字母找伙伴</strong><small>大写和小写，一起来配对</small></span></button></div>`;
@@ -131,7 +134,7 @@ function render() {
   } else {
     app.innerHTML=`<section class="lesson"><p class="eyebrow" style="text-align:center">THE ALPHABET HOUSE</p><h1 class="lesson-title">26 个字母，${words.length} 个朋友</h1><p class="lesson-note">按 A 到 Z 顺序学习，每组通关后解锁下一组</p>${letterPicker()}</section>`;
   }
-  icons(); window.scrollTo(0,0);
+  icons();updateContinueButton(); window.scrollTo(0,0);
 }
 function selectLetter(letter) {
   const index=courses.findIndex(course=>course.letter===letter);if(index<0)return;
@@ -164,9 +167,9 @@ function startGame(kind,journey=false,reviewMode=false) {
     if(pool.length<batchSize)pool.push(...shuffle(familiar.filter(w=>!pool.some(p=>p.id===w.id))).slice(0,batchSize-pool.length));
   }
   const targets=shuffle(pool);
-  game={kind,journey,reviewMode,courseIndex:courseIndex(),letter:reviewMode?'复习':prefs.selected,pool,page:wordPage,round:0,total:targets.length,targets,pass:0,retries:new Map(),failed:new Set(),solved:new Set(),finished:false,locked:false,selected:null,firstTry:true};
+  game={kind,journey,reviewMode,courseIndex:courseIndex(),letter:reviewMode?'复习':prefs.selected,pool,page:wordPage,round:0,total:targets.length,targets,pass:0,retries:new Map(),questions:new Map(),failed:new Set(),solved:new Set(),finished:false,locked:false,selected:null,firstTry:true};
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.game===kind));
-  drawRound();
+  updateContinueButton();drawRound();
 }
 function targetAudio() { return game.kind==='match'?game.target.letter:game.target.id; }
 function drawRound() {
@@ -180,9 +183,19 @@ function drawRound() {
   Object.assign(game,{locked:false,selected:null,firstTry:true,attempts:0,audioFailed:false});
   const target=game.targets[game.round];game.target=target;
   game.options=shuffle([target,...shuffle((game.reviewMode?words:game.pool).filter(w=>w.id!==target.id&&(game.kind==='match'||w.zh!==target.zh))).slice(0,Number(prefs.difficulty)-1)]);
+  if(game.kind==='listen'){
+    const old=game.questions.get(target.id);
+    if(old){
+      const fresh=shuffle((game.reviewMode?words:game.pool).filter(w=>w.id!==target.id&&w.zh!==target.zh&&!old.includes(w.id)))[0];
+      if(fresh&&game.options.every(w=>old.includes(w.id)))game.options[game.options.findIndex(w=>w.id!==target.id)]=fresh;
+      const position=game.options.findIndex(w=>w.id===target.id),previous=old.indexOf(target.id);
+      if(position===previous){const other=(position+1)%game.options.length;[game.options[position],game.options[other]]=[game.options[other],game.options[position]];}
+    }
+    game.questions.set(target.id,game.options.map(w=>w.id));
+  }
   const match=game.kind==='match';
-  app.innerHTML=`<section class="game"><div class="game-top"><button class="icon-button" id="back" aria-label="回到花园">${icon('arrow-left')}</button><div class="progress-dots" aria-label="第${game.round+1}题，共${game.total}题">${Array.from({length:game.total},(_,i)=>`<span class="${i<game.round?'done':''}"></span>`).join('')}</div><span class="eyebrow" style="margin:0">${game.letter} · ${game.round+1} / ${game.total}</span></div><p class="attempt-note" id="attempt-note">${game.pass?`再认一次 · 第 ${game.pass} 轮 · `:''}每题两次机会 · 还可以选 2 次</p><div class="game-head"><h1 class="game-title">${match?'谁是它的小写伙伴？':'你听见了哪个朋友？'}</h1>${match?`<div class="question-word">${target.letter}</div>`:''}<button class="prompt-button" id="repeat" aria-label="再听一次">${icon('volume-2')}</button><p id="sound-caption" class="sound-caption" hidden></p></div><div class="game-options ${game.options.length===2?'two':''}">${game.options.map(w=>`<button class="option" data-choice="${w.id}" aria-label="${match?w.lower:w.zh}">${match?`<span class="match-letter">${w.lower}</span>`:sprite(w)}</button>`).join('')}</div><div class="feedback" role="status"></div><div class="game-controls"></div></section>`;
-  icons();window.scrollTo(0,0);
+  app.innerHTML=`<section class="game"><div class="game-top"><button class="icon-button" id="back" aria-label="回到花园">${icon('arrow-left')}</button><div class="progress-dots" aria-label="第${game.round+1}题，共${game.total}题">${Array.from({length:game.total},(_,i)=>`<span class="${i<game.round?'done':''}"></span>`).join('')}</div><span class="eyebrow" style="margin:0">${game.letter} · ${game.round+1} / ${game.total}</span></div><p class="attempt-note" id="attempt-note">${game.pass?`再认一次 · 第 ${game.pass} 轮 · `:''}${match?'每题两次机会 · 还可以选 2 次':'每题选一次 · 选错先跳过，最后换题再认'}</p><div class="game-head"><h1 class="game-title">${match?'谁是它的小写伙伴？':'你听见了哪个朋友？'}</h1>${match?`<div class="question-word">${target.letter}</div>`:''}<button class="prompt-button" id="repeat" aria-label="再听一次">${icon('volume-2')}</button><p id="sound-caption" class="sound-caption" hidden></p></div><div class="game-options ${game.options.length===2?'two':''}">${game.options.map(w=>`<button class="option" data-choice="${w.id}" aria-label="${match?w.lower:w.zh}">${match?`<span class="match-letter">${w.lower}</span>`:sprite(w)}</button>`).join('')}</div><div class="feedback" role="status"></div><div class="game-controls"></div></section>`;
+  icons();updateContinueButton();window.scrollTo(0,0);
   speak(...(prefs.hints?[match?'hint-match':'hint-listen']:[]),targetAudio());
 
 }
@@ -203,7 +216,15 @@ async function answer(id) {
   game.attempts++;
   if(id!==game.target.id) {
     game.firstTry=false;game.failed.add(game.target.id);game.retries.set(game.target.id,game.target);
-    if(game.kind==='listen'){review.mistake(prefs.wordReview,game.target.id);save();}
+    if(game.kind==='listen'){
+      review.mistake(prefs.wordReview,game.target.id);save();game.locked=true;lockOptions();
+      const repeat=document.querySelector('#repeat');if(repeat)repeat.disabled=true;
+      const note=document.querySelector('#attempt-note');if(note)note.textContent='这个词记下来啦 · 本组最后换一道题再试';
+      button?.classList.add('retry');feedback('对不起，选错了。');
+      await speak('wrong-choice');
+      if(game===current&&game.round===round&&game.pass===pass)advanceRound(current,round,pass);
+      return;
+    }
     button?.classList.add('retry');setTimeout(()=>button?.classList.remove('retry'),350);
     const note=document.querySelector('#attempt-note');
     if(game.attempts<2){
@@ -243,11 +264,11 @@ function complete() {
   const reward=globalThis.GardenRewards?.award('english',`${game.letter}-${game.kind}-${wordPage}`,`english-${Date.now()}-${Math.random()}`);
   const rewardText=reward?.error|| (reward?.amount ? `⭐ 获得 ${reward.amount} 颗星星！${reward.bonusAmount?' 五科打卡完成，额外 +5 颗星星！':''}` : '这一关的星星已经记好啦。');
   app.innerHTML=`<section class="game completion"><div class="reward">${icon('star')}</div><p class="eyebrow">A LITTLE MOMENT TO SHINE</p><h1>${game.reviewMode?'单词复习':game.letter+' 的小冒险'}，完成啦！</h1><p>${game.failed.size?'刚才答错的朋友，也都重新认对啦！':'每个朋友都认对啦！'}${game.kind==='listen'&&game.failed.size?' 错词已安排间隔复习。':''}</p><p class="reward-note">${rewardText}${reward?.rest?' 你已经探索了好几轮，去喝口水、看看远处吧。':''}</p><a class="reward-entry" href="../../rewards.html">🌱 布置我的花园</a><div class="reward-row">${game.kind==='match'?game.pool.map(w=>`<span class="reward-letter">${w.letter}${w.lower}</span>`).join(''):game.pool.map(w=>`<div class="word-reward">${sprite(w)}<strong>${w.word}</strong></div>`).join('')}</div><div class="completion-actions"><button class="primary" id="next-round">${icon('play')}${game.reviewMode?(dueReview().length?'继续今日复习':'继续课程学习'):'下一关'}</button>${game.kind==='listen'?'<button class="secondary" id="review-book">查看错题本</button>':''}<button class="secondary" id="rest">休息一下</button></div></section>`;
-  icons();if(reward?.amount===1)speak(...(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']));else speak('finish');
+  icons();updateContinueButton();if(reward?.amount===1)speak(...(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']));else speak('finish');
 }
 function showModal(html) {stopAudio();document.querySelector('#modal-content').innerHTML=html;modal.showModal();icons();}
 function parentSettings() {
-  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">中文语音提示</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。每题最多选两次，错词需在本组末尾补练到首次答对，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;icons();
+  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">中文语音提示</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。听音找图每题只选一次，选错立即结束该题，错词在本组末尾换题补练到独立答对；字母配对每题两次机会，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;icons();
 }
 function updateSound() {
   document.querySelector('#sound').innerHTML=icon(prefs.sound?'volume-2':'volume-x');
@@ -306,6 +327,8 @@ document.addEventListener('change',e=>{
 });
 modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAudio();});
-save();if(dueReview().length)renderReviewBook();else render();updateSound();
+save();if(needsReview())startGame('listen',false,true);else render();updateSound();
 
-const headerContinue=document.createElement('button');headerContinue.id='header-continue';headerContinue.className='header-continue';headerContinue.textContent='▶ 继续课程';document.querySelector('.header-actions').prepend(headerContinue);headerContinue.onclick=()=>{if(game&&!game.finished){document.querySelector('#app').scrollIntoView({block:'start'});return;}if(requireReview())return;const n=curriculum.current(prefs.courseProgress,courses);prefs.selected=courses[n].letter;wordPage=courses[n].page;save();startGame('listen');};
+const headerContinue=document.createElement('button');headerContinue.id='header-continue';headerContinue.className='header-continue';headerContinue.textContent='▶ 继续课程';document.querySelector('.header-actions').prepend(headerContinue);headerContinue.onclick=()=>{if(game&&!game.finished){document.querySelector('#app').scrollIntoView({block:'start'});return;}if(needsReview()){startGame('listen',false,true);return;}const n=curriculum.current(prefs.courseProgress,courses);prefs.selected=courses[n].letter;wordPage=courses[n].page;save();startGame('listen');};
+
+updateContinueButton();
