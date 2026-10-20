@@ -11,7 +11,7 @@
   function answer(correct){if(done)return {ignored:true};const q=current();if(!correct){hadMistake=true;failed.add(q.target);attempts++;if(attempts>=2){next();return {correct:false,teach:true,advanced:true};}return {correct:false,teach:false,advanced:false};}
    if(attempts)failed.add(q.target);else (phase==='meaning'?evidence.meaning:evidence.lines).add(q.target);next();return {correct:true,advanced:true};
   }
-  return {current,answer,get done(){return done;},get hadMistake(){return hadMistake;},get proof(){return done&&evidence.meaning.size===2&&evidence.lines.size===poem.lines.length;}};
+  return {current,answer,get progress(){return {total:poem.lines.length+2,completed:evidence.meaning.size+evidence.lines.size};},get done(){return done;},get hadMistake(){return hadMistake;},get proof(){return done&&evidence.meaning.size===2&&evidence.lines.size===poem.lines.length;}};
  }
  function open(storage,catalog,awarder,now=()=>Date.now()){
   const ids=catalog.poems.map(p=>p.id),valid=new Set(ids),fresh=()=>({version:1,passed:{},reviews:{},mistakes:{},rounds:0,tokens:[],pending:[]});let state=fresh(),error='',blocked=false;
