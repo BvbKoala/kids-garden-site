@@ -1,6 +1,11 @@
 const lessons = globalThis.ABC_LESSONS;
 const words = lessons.flatMap(lesson => lesson.words);
 const byId = new Map(words.map(word => [word.id, word]));
+const englishSpeechIds = new Set([...byId.keys(), ...lessons.map(lesson => lesson.letter)]);
+function englishAudioPath(id) {
+  if (id.startsWith('g-') || ['star-earned','daily-checkin-bonus'].includes(id)) return `../shared/audio/${id}.mp3`;
+  return `assets/audio/${englishSpeechIds.has(id)?'annie-v1/':''}${id}.mp3`;
+}
 const initial = () => ({ sound:true, hints:true, difficulty:3, selected:'A', seen:[], correct:{}, completed:{}, stickers:[], rounds:0, wordReview:{} });
 let stored;
 try { stored = JSON.parse(localStorage.getItem('abc-garden-v2') || localStorage.getItem('abc-garden-v1') || 'null'); } catch {}
@@ -82,7 +87,7 @@ async function speak(...ids) {
   const token=playToken;
   for (const id of ids) {
     if (token!==playToken||document.hidden) return;
-    const audio=new Audio((id.startsWith('g-')||['star-earned','daily-checkin-bonus'].includes(id))?`../shared/audio/${id}.mp3`:`assets/audio/${id}.mp3`);currentAudio=audio;
+    const audio=new Audio(englishAudioPath(id));currentAudio=audio;
     await new Promise(resolve=>{
       let settled=false;
       const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);audio.onended=audio.onerror=null;if(currentAudio===audio)currentAudio=null;if(audioResolve===finish)audioResolve=null;resolve();};
@@ -134,7 +139,9 @@ function render() {
   if(view==='garden') {
     app.innerHTML=`<section class="garden"><div class="garden-head"><p class="eyebrow">26 LETTERS · ${words.length} LITTLE DISCOVERIES</p><div class="letter-switch"><button class="icon-button" id="prev-letter" aria-label="上一个字母" ${l.index===0?'disabled':''}>${icon('chevron-left')}</button><h1>今天，和 ${l.letter} 做朋友</h1><button class="icon-button" id="next-letter" aria-label="下一个字母" ${l.index===25||!courseAllowed(courses.findIndex(course=>course.letter===lessons[l.index+1]?.letter))?'disabled':''}>${icon('chevron-right')}</button></div><p>${l.letter} 的 10 个朋友，都在等你呀。</p>${courseStatus()}</div><div class="word-pagination"><button class="icon-button" id="prev-page" aria-label="上一组单词" ${wordPage===0?'disabled':''}>${icon('chevron-left')}</button><span>第 ${wordPage+1} 组 <small>· ${wordPage*batchSize+1}–${Math.min((wordPage+1)*batchSize,l.words.length)} / ${l.words.length}</small></span><button class="icon-button" id="next-page" aria-label="下一组单词" ${(wordPage+1)*batchSize>=l.words.length||!courseAllowed(courseIndex()+1)?'disabled':''}>${icon('chevron-right')}</button></div><div class="letter-cards word-batch">${batchWords().map(card).join('')}</div><div class="start-wrap"><button class="primary" id="start">${icon('play')}开始玩 ${l.letter}</button><span class="path-info">课程顺序：A 第 1 组 → A 第 2 组 → B 第 1 组…</span></div></section><section class="alphabet-band"><div class="section-heading"><h2>今天想认识谁？</h2><span>已接触 ${prefs.seen.length} / ${words.length} 个单词</span></div>${letterPicker(true)}</section><section class="activity-band"><div class="section-heading"><h2>选一个，玩一玩</h2><span>${l.letter} 的小小冒险</span></div>${activities()}</section>`;
     app.querySelector('.alphabet-band').insertAdjacentHTML('beforebegin',reviewSummary());
-    app.querySelector('.garden').insertAdjacentHTML('beforebegin','<a class="sentence-track-link" href="sentences.html"><span>🗣️🎬</span><span>句子冒险 · 开始说完整的话<small>48 课 · 四级进阶 · 五种游戏 · 点这里进入 →</small></span></a>');
+    app.querySelector('.garden').id='word-course';
+    app.querySelector('.garden').insertAdjacentHTML('afterbegin','<div class="english-track-heading"><span aria-hidden="true">🔤</span><h2>学单词</h2><p>26个字母 · 260个单词 · 52课</p></div>');
+    app.querySelector('.garden').insertAdjacentHTML('afterend',`<section class="sentence-course english-track" id="sentence-course" aria-labelledby="sentence-course-title"><div class="english-track-heading"><span aria-hidden="true">🗣️</span><h2 id="sentence-course-title">句子冒险</h2><p>48课 · 四级进阶 · 五种游戏</p></div><div class="sentence-course-scene" aria-hidden="true"><div class="sentence-friend">${sprite(byId.get('cat'))}<span>This is a cat.</span></div><div class="sentence-friend">${sprite(byId.get('dog'))}<span>I like dogs!</span></div><div class="sentence-friend">${sprite(byId.get('duck'))}<span>Can you swim?</span></div></div><p class="sentence-course-intro">送朋友回家、句子小火车、角色对话……<br>边玩边说完整的话。</p><a class="primary sentence-track-link" href="sentences.html">${icon('play')}进入句子冒险</a><p class="path-info">听故事 → 玩五个挑战 → 一课一课解锁</p></section>`);
   } else {
     app.innerHTML=`<section class="lesson"><p class="eyebrow" style="text-align:center">THE ALPHABET HOUSE</p><h1 class="lesson-title">26 个字母，${words.length} 个朋友</h1><p class="lesson-note">按 A 到 Z 顺序学习，每组通关后解锁下一组</p>${letterPicker()}</section>`;
   }
@@ -273,7 +280,7 @@ function complete() {
 }
 function showModal(html) {stopAudio();document.querySelector('#modal-content').innerHTML=html;modal.showModal();icons();}
 function parentSettings() {
-  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">自动中文玩法提示（也可手动重听）</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。听音找图每题只选一次，选错立即结束该题，错词在本组末尾换题补练到独立答对；字母配对每题两次机会，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;icons();
+  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><section id="english-audio-settings"></section><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">自动中文玩法提示（也可手动重听）</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。听音找图每题只选一次，选错立即结束该题，错词在本组末尾换题补练到独立答对；字母配对每题两次机会，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;GardenAudioSettings.mount(document.querySelector('#english-audio-settings'),{canSave:()=>modal.open&&!!document.querySelector('#voice-setting')});icons();
 }
 function updateSound() {
   document.querySelector('#sound').innerHTML=icon(prefs.sound?'volume-2':'volume-x');
