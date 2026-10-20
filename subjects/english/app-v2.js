@@ -31,7 +31,7 @@ function requireReview() {
 }
 function moveToCourse(index) {
   if(requireReview())return;
-  if(!courseAllowed(index)){notice('先通过前一课，就能解锁这里啦。');return;}
+  if(!courseAllowed(index)){notice('先通过前一课，就能解锁这里啦。');speak('g-locked');return;}
   prefs.selected=courses[index].letter;wordPage=courses[index].page;save();view='garden';render();
 }
 function needsReview() { return dueReview().length>0||(!reviewClearance&&review.active(prefs.wordReview).length>0); }
@@ -76,20 +76,23 @@ function updateCaption() {
   }
 }
 async function speak(...ids) {
-  stopAudio(); updateCaption();
-  if (!prefs.sound) return;
+  stopAudio(); updateCaption();document.querySelector('.audio-notice')?.remove();
+  if (!prefs.sound||document.hidden) return;
+  window.dispatchEvent(new CustomEvent('garden-audio-start',{detail:'english'}));
   const token=playToken;
   for (const id of ids) {
-    if (token!==playToken) return;
-    const audio=new Audio(['star-earned','daily-checkin-bonus'].includes(id)?`../shared/audio/${id}.mp3`:`assets/audio/${id}.mp3`);currentAudio=audio;
+    if (token!==playToken||document.hidden) return;
+    const audio=new Audio((id.startsWith('g-')||['star-earned','daily-checkin-bonus'].includes(id))?`../shared/audio/${id}.mp3`:`assets/audio/${id}.mp3`);currentAudio=audio;
     await new Promise(resolve=>{
       let settled=false;
-      const finish=()=>{if(settled)return;settled=true;if(audioResolve===finish)audioResolve=null;resolve();};
+      const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);audio.onended=audio.onerror=null;if(currentAudio===audio)currentAudio=null;if(audioResolve===finish)audioResolve=null;resolve();};
       const failure=()=>{if(token===playToken){if(game){game.audioFailed=true;updateCaption();}notice('声音暂时无法播放，请点喇叭再试一次');}finish();};
-      audioResolve=finish;audio.onended=finish;audio.onerror=failure;audio.play().catch(failure);
+      const timer=setTimeout(()=>{audio.pause();failure();},60000);audioResolve=finish;audio.onended=finish;audio.onerror=failure;audio.play().catch(failure);
     });
   }
 }
+function guideButton(id,clip,auto=true){app.insertAdjacentHTML('afterbegin',`<button class="voice-guide" id="${id}">🔊 听听怎么玩</button>`);document.querySelector('#'+id).onclick=()=>speak(clip);if(auto&&prefs.hints)speak(clip);}
+function gameGuide(){return game.kind==='match'?'g-english-match':game.reviewMode?'g-english-review':'g-english-listen';}
 function wordLabel(w) {
   const index=w.word.toLowerCase().indexOf(w.lower);
   return `${w.word.slice(0,index)}<em>${w.word[index]}</em>${w.word.slice(index+1)}`;
@@ -119,7 +122,7 @@ function renderReviewBook() {
     const date=new Date(entry.nextDue).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
     return `<article class="review-card ${mastered?'mastered':''}" data-review-word="${id}"><button data-word="${id}" aria-label="听 ${w.word}">${sprite(w)}<strong>${w.word}</strong><span>${w.zh}</span></button><span class="review-status">${mastered?'✓ 已记牢':review.isDue(entry,now)?'今天可以复习':`${date}再见`}</span><div class="memory-steps" aria-label="完成 ${entry.stage} / 5 次到期复习">${review.intervals.map((days,i)=>`<span class="${i<entry.stage?'done':''}">${days}天</span>`).join('')}</div><small>答错 ${entry.mistakes} 次 · 到期复习 ${entry.stage}/5</small></article>`;
   }).join('')}</div></section>`;
-  icons();updateContinueButton();window.scrollTo(0,0);
+  icons();updateContinueButton();window.scrollTo(0,0);guideButton('book-guide',active.length?'g-english-book':'g-book-empty');
 }
 function activities() {
   return `<div class="activity-list"><button class="activity" data-game="listen">${icon('headphones')}<span><strong>听音找朋友</strong><small>${prefs.selected} · 第 ${wordPage+1} 组</small></span></button><button class="activity" data-game="match">${icon('puzzle')}<span><strong>字母找伙伴</strong><small>大写和小写，一起来配对</small></span></button></div>`;
@@ -134,7 +137,7 @@ function render() {
   } else {
     app.innerHTML=`<section class="lesson"><p class="eyebrow" style="text-align:center">THE ALPHABET HOUSE</p><h1 class="lesson-title">26 个字母，${words.length} 个朋友</h1><p class="lesson-note">按 A 到 Z 顺序学习，每组通关后解锁下一组</p>${letterPicker()}</section>`;
   }
-  icons();updateContinueButton(); window.scrollTo(0,0);
+  icons();updateContinueButton(); window.scrollTo(0,0);guideButton('home-guide',view==='garden'?'g-english-home':'g-english-letters');
 }
 function selectLetter(letter) {
   const index=courses.findIndex(course=>course.letter===letter);if(index<0)return;
@@ -196,14 +199,15 @@ function drawRound() {
   const match=game.kind==='match';
   app.innerHTML=`<section class="game"><div class="game-top"><button class="icon-button" id="back" aria-label="回到花园">${icon('arrow-left')}</button><div class="progress-dots" aria-label="第${game.round+1}题，共${game.total}题">${Array.from({length:game.total},(_,i)=>`<span class="${i<game.round?'done':''}"></span>`).join('')}</div><span class="eyebrow" style="margin:0">${game.letter} · ${game.round+1} / ${game.total}</span></div><p class="attempt-note" id="attempt-note">${game.pass?`再认一次 · 第 ${game.pass} 轮 · `:''}${match?'每题两次机会 · 还可以选 2 次':'每题选一次 · 选错先跳过，最后换题再认'}</p><div class="game-head"><h1 class="game-title">${match?'谁是它的小写伙伴？':'你听见了哪个朋友？'}</h1>${match?`<div class="question-word">${target.letter}</div>`:''}<button class="prompt-button" id="repeat" aria-label="再听一次">${icon('volume-2')}</button><p id="sound-caption" class="sound-caption" hidden></p></div><div class="game-options ${game.options.length===2?'two':''}">${game.options.map(w=>`<button class="option" data-choice="${w.id}" aria-label="${match?w.lower:w.zh}">${match?`<span class="match-letter">${w.lower}</span>`:sprite(w)}</button>`).join('')}</div><div class="feedback" role="status"></div><div class="game-controls"></div></section>`;
   icons();updateContinueButton();window.scrollTo(0,0);
-  speak(...(prefs.hints?[match?'hint-match':'hint-listen']:[]),targetAudio());
+  app.querySelector('.game-controls').innerHTML='<button class="voice-guide" id="game-guide">🔊 怎么玩</button>';
+  speak(...(!game.guided&&prefs.hints?[gameGuide()]:[]),targetAudio());game.guided=true;
 
 }
 function feedback(text) {
   const el=document.querySelector('.feedback');if(el)el.textContent=text;
   document.querySelector('#announcement').textContent=text;
 }
-function lockOptions() { document.querySelectorAll('[data-choice]').forEach(b=>b.disabled=true); }
+function lockOptions() { document.querySelectorAll('[data-choice],#repeat,#game-guide').forEach(b=>b.disabled=true); }
 function advanceRound(current, round, pass) {
   if(game!==current||game.round!==round||game.pass!==pass||!game.locked||game.finished)return;
   game.round++;drawRound();
@@ -264,11 +268,11 @@ function complete() {
   const reward=globalThis.GardenRewards?.award('english',`${game.letter}-${game.kind}-${wordPage}`,`english-${Date.now()}-${Math.random()}`);
   const rewardText=reward?.error|| (reward?.amount ? `⭐ 获得 ${reward.amount} 颗星星！${reward.bonusAmount?' 五科打卡完成，额外 +5 颗星星！':''}` : '这一关的星星已经记好啦。');
   app.innerHTML=`<section class="game completion"><div class="reward">${icon('star')}</div><p class="eyebrow">A LITTLE MOMENT TO SHINE</p><h1>${game.reviewMode?'单词复习':game.letter+' 的小冒险'}，完成啦！</h1><p>${game.failed.size?'刚才答错的朋友，也都重新认对啦！':'每个朋友都认对啦！'}${game.kind==='listen'&&game.failed.size?' 错词已安排间隔复习。':''}</p><p class="reward-note">${rewardText}${reward?.rest?' 你已经探索了好几轮，去喝口水、看看远处吧。':''}</p><a class="reward-entry" href="../../rewards.html">🌱 布置我的花园</a><div class="reward-row">${game.kind==='match'?game.pool.map(w=>`<span class="reward-letter">${w.letter}${w.lower}</span>`).join(''):game.pool.map(w=>`<div class="word-reward">${sprite(w)}<strong>${w.word}</strong></div>`).join('')}</div><div class="completion-actions"><button class="primary" id="next-round">${icon('play')}${game.reviewMode?(dueReview().length?'继续今日复习':'继续课程学习'):'下一关'}</button>${game.kind==='listen'?'<button class="secondary" id="review-book">查看错题本</button>':''}<button class="secondary" id="rest">休息一下</button></div></section>`;
-  icons();updateContinueButton();if(reward?.amount===1)speak(...(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']));else speak('finish');
+  icons();updateContinueButton();guideButton('finish-guide','g-finish',false);speak(...(reward?.amount===1?(reward.bonusAmount?['star-earned','daily-checkin-bonus']:['star-earned']):['finish']),reward?.error?'g-save-error':'g-finish');
 }
 function showModal(html) {stopAudio();document.querySelector('#modal-content').innerHTML=html;modal.showModal();icons();}
 function parentSettings() {
-  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">中文语音提示</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。听音找图每题只选一次，选错立即结束该题，错词在本组末尾换题补练到独立答对；字母配对每题两次机会，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;icons();
+  document.querySelector('#modal-content').innerHTML=`<h2>家长设置</h2><div class="settings-row"><label for="voice-setting">播放声音</label><input id="voice-setting" type="checkbox" ${prefs.sound?'checked':''}></div><div class="settings-row"><label for="hint-setting">自动中文玩法提示（也可手动重听）</label><input id="hint-setting" type="checkbox" ${prefs.hints?'checked':''}></div><div class="settings-row"><label for="difficulty">每题选项</label><select id="difficulty"><option value="2" ${prefs.difficulty==2?'selected':''}>2 个</option><option value="3" ${prefs.difficulty==3?'selected':''}>3 个</option></select></div><div class="stats"><div><strong>${prefs.seen.length}</strong><span>已接触 / ${words.length} 词</span></div><div><strong>${Object.values(prefs.correct).reduce((a,b)=>a+b,0)}</strong><span>首次独立答对</span></div><div><strong>${prefs.rounds}</strong><span>完成的游戏</span></div></div><p class="settings-note">每个字母 10 个词，共 ${words.length} 个，分成两组练习。字母录音读名称，不是自然拼读教学。同一字母在不同词中可以发不同的音。X 组包含词中或词尾含 X 的词，均有单独标记。课程按 A 第 1 组、A 第 2 组、B 第 1 组依次解锁。听音找图整组通关后解锁下一课，字母配对是辅助练习。每天先完成全部到期复习，再进入课程。听音找图每题只选一次，选错立即结束该题，错词在本组末尾换题补练到独立答对；字母配对每题两次机会，才发放星星。错题本按 1、3、7、14、30 天安排到期复习；复习词会混入其他单词。记录只保存在当前浏览器。</p><button class="secondary" id="reset">重置学习记录</button>`;icons();
 }
 function updateSound() {
   document.querySelector('#sound').innerHTML=icon(prefs.sound?'volume-2':'volume-x');
@@ -295,7 +299,8 @@ document.addEventListener('click',e=>{
     case 'review-book':case 'review-book-nav':renderReviewBook();break;
     case 'review-start':startGame('listen',false,true);break;
     case 'start':startGame('listen',true);break;
-    case 'repeat':if(game){game.audioFailed=false;speak(targetAudio());}break;
+    case 'game-guide':if(game&&!game.locked&&!game.finished)speak(gameGuide(),targetAudio());break;
+    case 'repeat':if(game&&!game.locked){game.audioFailed=false;speak(targetAudio());}break;
     case 'next-round':{
       if(!game||!game.finished)break;
       if(game.reviewMode){if(dueReview().length)startGame('listen',false,true);else continueCourse();break;}
@@ -305,7 +310,7 @@ document.addEventListener('click',e=>{
       const nextIndex=game.courseIndex+1;
       if(journey||kind==='listen'){
         if(nextIndex>=courses.length){view='garden';render();notice('52 课都通过啦！可以重练课程或去错题本巩固。');break;}
-        if(!courseAllowed(nextIndex)){notice('先完成当前课程，就能解锁下一课。');break;}
+        if(!courseAllowed(nextIndex)){notice('先完成当前课程，就能解锁下一课。');speak('g-locked');break;}
         prefs.selected=courses[nextIndex].letter;wordPage=courses[nextIndex].page;save();
       }
       startGame(journey?'listen':kind,journey);break;
@@ -332,3 +337,5 @@ save();if(needsReview())startGame('listen',false,true);else render();updateSound
 const headerContinue=document.createElement('button');headerContinue.id='header-continue';headerContinue.className='header-continue';headerContinue.textContent='▶ 继续课程';document.querySelector('.header-actions').prepend(headerContinue);headerContinue.onclick=()=>{if(game&&!game.finished){document.querySelector('#app').scrollIntoView({block:'start'});return;}if(needsReview()){startGame('listen',false,true);return;}const n=curriculum.current(prefs.courseProgress,courses);prefs.selected=courses[n].letter;wordPage=courses[n].page;save();startGame('listen');};
 
 updateContinueButton();
+
+window.addEventListener('pagehide',stopAudio);window.addEventListener('garden-audio-start',e=>{if(e.detail!=='english')stopAudio();});
