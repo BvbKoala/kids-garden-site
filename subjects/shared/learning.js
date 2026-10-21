@@ -38,10 +38,10 @@ function numberClips(n){
 function clipForQ(q){if(q.a!==undefined&&q.sign)return [...numberClips(q.a),q.sign==='+'?'plus':'minus',...numberClips(q.b),'equals-question'];return [q.audio];}
 async function speak(ids,onStart=()=>{}){
  stopSound();const error=root.querySelector('#audio-error');if(error)error.textContent='';if(!prefs.sound||document.hidden)return;window.dispatchEvent(new CustomEvent('garden-audio-start',{detail:'shared-study'}));
- const token=speechToken;
- for(const id of ids.filter(Boolean)){
+ const token=speechToken,list=ids.filter(Boolean),prepared=globalThis.GardenSpeechJoin?.prepare(list.map(id=>`../shared/audio/${id}.mp3`));
+ for(const [index,id] of list.entries()){
    if(token!==speechToken||document.hidden)return;onStart(id);
-   const clip=new Audio(`../shared/audio/${id}.mp3`);audio=clip;
+   const clip=prepared?.get(index)||new Audio(`../shared/audio/${id}.mp3`);audio=clip;
    const ok=await new Promise(resolve=>{let done=false;const finish=value=>{if(done)return;done=true;clearTimeout(timeout);clip.onended=clip.onerror=null;if(cancelAudio===cancel)cancelAudio=null;resolve(value);};const cancel=()=>finish(true);cancelAudio=cancel;const timeout=setTimeout(()=>{clip.pause();finish(false);},60000);clip.onended=()=>finish(true);clip.onerror=()=>finish(false);clip.play().catch(()=>finish(false));});
    if(token!==speechToken)return;
    if(!ok){const el=document.querySelector('#audio-error');if(el)el.textContent='声音暂时没播放出来，可以再点一次喇叭。';return;}

@@ -84,10 +84,10 @@ async function speak(...ids) {
   stopAudio(); updateCaption();document.querySelector('.audio-notice')?.remove();
   if (!prefs.sound||document.hidden) return;
   window.dispatchEvent(new CustomEvent('garden-audio-start',{detail:'english'}));
-  const token=playToken;
-  for (const id of ids) {
+  const token=playToken,prepared=globalThis.GardenSpeechJoin?.prepare(ids.map(englishAudioPath));
+  for (const [index,id] of ids.entries()) {
     if (token!==playToken||document.hidden) return;
-    const audio=new Audio(englishAudioPath(id));currentAudio=audio;
+    const audio=prepared?.get(index)||new Audio(englishAudioPath(id));currentAudio=audio;
     await new Promise(resolve=>{
       let settled=false;
       const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);audio.onended=audio.onerror=null;if(currentAudio===audio)currentAudio=null;if(audioResolve===finish)audioResolve=null;resolve();};
